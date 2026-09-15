@@ -41,7 +41,7 @@ Gio
     
 ### Network Multiplayer
 
-**Host/Client Model:** Players connect to a server instead of peer to peer. (Possibly looking to use something like naia).
+**Host/Client Model:** Players connect to a server instead of peer to peer. (Possibly looking to use something like naia, renet, or spacetimedb).
 
 **Real Time State Sync:** Everything stays synchronized between clients like block placements, currency, and attacks (Looking at using the Tokio crate to help with staying in sync).
 
