@@ -43,9 +43,9 @@ Gio
 
 **Host/Client Model:** One player acts as host and generates a room code; the second player joins the same match by entering it.
 
-**Real Time State Sync:** Everything stays synchronized between clients like block placements, currency, and attacks
+**Real Time State Sync:** Everything stays synchronized between clients like block placements, currency, and attacks (Looking at using the Tokio crate to help with staying in sync).
 
-**Latency Handling:** Keeps game fair under lag
+**Latency Handling:** Keeps game fair under lag. (We will be Using UDP over TCP. Even though UDP is less reliable its speed will make up for it). 
 
 
 ## Midterm Goals
