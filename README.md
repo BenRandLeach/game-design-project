@@ -1,8 +1,8 @@
 # Tower Defense
 
-# GAMENAMEHERE
+# Tower_Balance
 
-by TEAMNAMEHERE
+by The Balancing Tower
 
 ## Team Members
 * Advanced Topic Subteam 1: Custom Physics Engine
