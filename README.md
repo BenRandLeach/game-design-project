@@ -11,7 +11,7 @@ by TEAMNAMEHERE
  	* brr154: Ben Rand
 
 * Advanced Topic Subteam 2: Network Multiplayer
-	* STUDENT1_USERNAME_HERE: Polly Naneva
+	* PIN7: Polly Naneva
  	* OSO36: Osarumen Samantha Okhiku
  	* dag327: Daniel Gallagher
 
