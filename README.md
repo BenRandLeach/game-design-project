@@ -59,12 +59,12 @@ Gio
 
 ## Final Goals
 
-* XX%: 2 power-ups
-* XX%: Players can connect and play against each other with minimal lag
-* XX%: Blocks stack, collide, and fall within our physics engine
-* XX%: 3 block types
-* XX%: 2 attack types
-* XX%: Earn money from building, destroying blocks, and through bank block.
+* 10%: 2 power-ups
+* 20%: Players can connect and play against each other with minimal lag
+* 20%: Blocks stack, collide, and fall within our physics engine
+* 10%: 3 block types
+* 10%: 2 attack types
+* 10%: Earn money from building, destroying blocks, and through bank block.
 ...
 
 ## Stretch Goals
