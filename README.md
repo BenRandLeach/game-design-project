@@ -12,7 +12,7 @@ by TEAMNAMEHERE
 
 * Advanced Topic Subteam 2: Network Multiplayer
 	* STUDENT1_USERNAME_HERE: Polly Naneva
- 	* OSO36: Sam Okhiku
+ 	* OSO36: Osarumen Samantha Okhiku
  	* Daniel-J-Gallagher: Daniel Gallagher
 
 ## Game Description
@@ -24,9 +24,9 @@ That might sound easy, but your tower will also have to be balanced or it will f
 Each block has a mass, shape, and density that will impact the balance of your tower.
 
 ## Game Concept Photos
-<img width="512" height="239" alt="TD concept photo" src="https://github.com/user-attachments/assets/318e508a-f406-440a-8915-1b5604770d95" />
+<img width="512" height="239" alt="TD concept photo" src="https://github.com/user-attachments/assets/318e508a-f406-440a-8915-1b5604770d95" />  
 Danny
-<img width="512" height="380" alt="TD concept photo2" src="https://github.com/user-attachments/assets/2cdad1c5-d81a-48c7-b689-5791cb78f466" />
+<img width="512" height="380" alt="TD concept photo2" src="https://github.com/user-attachments/assets/2cdad1c5-d81a-48c7-b689-5791cb78f466" />  
 Gio
 
 ## Advanced Topic Description
