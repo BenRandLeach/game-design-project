@@ -41,7 +41,7 @@ Gio
     
 ### Network Multiplayer
 
-**Host/Client Model:** One player acts as host and generates a room code; the second player joins the same match by entering it.
+**Host/Client Model:** Players connect to a server instead of peer to peer. (Possibly looking to use something like naia).
 
 **Real Time State Sync:** Everything stays synchronized between clients like block placements, currency, and attacks (Looking at using the Tokio crate to help with staying in sync).
 
