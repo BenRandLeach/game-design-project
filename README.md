@@ -13,7 +13,7 @@ by TEAMNAMEHERE
 * Advanced Topic Subteam 2: Network Multiplayer
 	* STUDENT1_USERNAME_HERE: Polly Naneva
  	* OSO36: Osarumen Samantha Okhiku
- 	* Daniel-J-Gallagher: Daniel Gallagher
+ 	* dag327: Daniel Gallagher
 
 ## Game Description
 
