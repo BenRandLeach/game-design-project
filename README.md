@@ -8,7 +8,7 @@ by TEAMNAMEHERE
 * Advanced Topic Subteam 1: Custom Physics Engine
 	* STUDENT1_USERNAME_HERE: Ishay Wirthiem
  	* STUDENT2_USERNAME_HERE: Gio Bair
- 	* STUDENT3_USERNAME_HERE: Ben Rand
+ 	* brr154: Ben Rand
 
 * Advanced Topic Subteam 2: Network Multiplayer
 	* STUDENT1_USERNAME_HERE: Polly Naneva
