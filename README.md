@@ -65,9 +65,10 @@ Gio
 * 10%: 3 block types
 * 10%: 2 attack types
 * 10%: Earn money from building, destroying blocks, and through bank block.
+* 10% MVP
 ...
 
 ## Stretch Goals
 
-* Wind System that will interact with towers, and projectiles
-* Forced vertical auto scroller (rising skyline) 
+* 5% Wind System that will interact with towers, and projectiles
+* 5% Forced vertical auto scroller (rising skyline) 
