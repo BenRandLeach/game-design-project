@@ -41,20 +41,20 @@ Gio
     
 ### Network Multiplayer
 
-**Host/Client Model:** Players connect to a server instead of peer to peer. (Possibly looking to use something like naia, renet, or spacetimedb).
+**Host/Client Model:** Players connect to a server instead of peer to peer. (Look how to implement).
 
 **Real Time State Sync:** Everything stays synchronized between clients like block placements, currency, and attacks (Looking at using the Tokio crate to help with staying in sync).
 
-**Latency Handling:** Keeps game fair under lag. (We will be Using UDP over TCP. Even though UDP is less reliable its speed will make up for it). 
+**Latency Handling:** Keeps game fair under lag. (We will be Using UDP over TCP. Even though UDP is less reliable its speed will make up for it) (Say how we will implement). 
 
 
 ## Midterm Goals
 
-* Basic Block Building
-* One working attack type
-* 2 block variants
+* Basic Block Building (Can click to buy block, A and D to move block, W to rotate, and S to drop)
+* One working attack type (Slingshot that launches straight out)
+* 1 block variants (Wood block)
 * Two players can join a lobby, interactions eventually reach other player
-* Blocks can stack
+* Blocks can stack on top of each other.
 ...
 
 ## Final Goals
@@ -63,10 +63,10 @@ Gio
 * 20%: Players can connect and play against each other with minimal lag
 * 20%: Blocks stack, collide, and fall within our physics engine
 * 10%: 3 block types (Bank Block generates money. Wood block which is cheaper, weighs less, and easier to break. Metal block which is more expensive, weighs more, harder to break).
-* 10%: 2 attack types (Bullet bill type and slingshot type).
+* 10%: 2 attack types (Bullet bill like attack (Attacks will ignore its own teams buildings) and slingshot type (Can set attack angle and then it will automatically attack using that angle)).
 * 10%: Earn money from building, destroying blocks, and through bank block.
 
 ## Stretch Goals
 
-* 5% Wind System that will interact with towers, and projectiles
+* 5% Wind System that will interact with towers, and projectiles (Could be an upgrade a player can buy or a fan block type that blows towards enemy tower)
 * 5% Forced vertical auto scroller (rising skyline) 
