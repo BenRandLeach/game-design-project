@@ -7,7 +7,7 @@ by The Balancing Tower
 ## Team Members
 * Advanced Topic Subteam 1: Custom Physics Engine
 	* ISW26: Ishay Wirthiem
- 	* STUDENT2_USERNAME_HERE: Gio Bair
+ 	* gmb139: Gio Bair
  	* brr154: Ben Rand
 
 * Advanced Topic Subteam 2: Network Multiplayer
