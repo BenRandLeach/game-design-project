@@ -59,14 +59,12 @@ Gio
 
 ## Final Goals
 
-* 10%: 2 power-ups
+* 10%: 2 power-ups (2x money and 2x attack speed)
 * 20%: Players can connect and play against each other with minimal lag
 * 20%: Blocks stack, collide, and fall within our physics engine
-* 10%: 3 block types
-* 10%: 2 attack types
+* 10%: 3 block types (Bank Block generates money. Wood block which is cheaper, weighs less, and easier to break. Metal block which is more expensive, weighs more, harder to break).
+* 10%: 2 attack types (Bullet bill type and slingshot type).
 * 10%: Earn money from building, destroying blocks, and through bank block.
-* 10% MVP
-...
 
 ## Stretch Goals
 
