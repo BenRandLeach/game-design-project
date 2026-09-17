@@ -41,11 +41,12 @@ Gio
     
 ### Network Multiplayer
 
-**Host/Client Model:** Players connect to a server instead of peer to peer. (Look how to implement).
+**Host/Client Model:** Players connect to a server instead of peer to peer. (Separate the client code from the server code) .
 
 **Real Time State Sync:** Everything stays synchronized between clients like block placements, currency, and attacks (Looking at using the Tokio crate to help with staying in sync).
 
-**Latency Handling:** Keeps game fair under lag. (We will be Using UDP over TCP. Even though UDP is less reliable its speed will make up for it) (Say how we will implement). 
+**Latency Handling:** Keeps game fair under lag. (We will be Using UDP over TCP. Even though UDP is less reliable its speed will make up for it). Rust has a built in UDPSocket in the standard library. We can bind that socket to a given IP address for hosting. 
+We will have to check if the IP address is available and if not choose a different one. The Rust Standard library has examples of other functions like how to send and receieve data. 
 
 
 ## Midterm Goals
