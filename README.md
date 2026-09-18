@@ -69,5 +69,5 @@ We will have to check if the IP address is available and if not choose a differe
 
 ## Stretch Goals
 
-* 5% Wind System that will interact with towers, and projectiles (Could be an upgrade a player can buy or a fan block type that blows towards enemy tower)
+* 5% Wind System that will interact with towers, and projectiles. Wind system will be either a fan block that will have a force pushing your enemies tower and projectiles, or a random scripted event that will push towards you or your opponents tower. The wind system will also speed up projectiles that are going in the direction of the wind.
 * 5% Forced vertical auto scroller (rising skyline) 
