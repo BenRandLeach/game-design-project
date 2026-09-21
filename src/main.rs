@@ -1,109 +1,90 @@
 use bevy::{prelude::*, window::PresentMode};
 
 #[derive(Component)]
-struct PopupTimer{
-    timer: Timer,
-    layer: f32,
-}
+struct CreditSlide;
 
+#[derive(Resource)]
+struct SlideShow {
+    timer: Timer,
+    index: usize,
+    slides: Vec<Entity>,
+}
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title: "Credits".into(),
-                resolution: (640, 480).into(),
+                resolution: (1280, 720).into(),
                 present_mode: PresentMode::AutoVsync,
                 ..default()
             }),
             ..default()
         }))
         .add_systems(Startup, setup)
-        .add_systems(Update, show_popup)
+        .add_systems(Update, cycle_slides)
         .run();
 }
+
+// The source images are all different resolutions and aspect ratios, so give
+// every slide the same custom size to keep the rotation visually consistent.
+const SLIDE_SIZE: Vec2 = Vec2::new(1280.0, 720.0);
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn(Camera2d);
 
-    commands.spawn(Sprite::from_image(asset_server.load("img/DannyGallagherNameSlide.png")));
-    commands.spawn((
-        Sprite{
-          image: asset_server.load("img/image0.png"),
-        custom_size: Some(Vec2::new(1280.0, 720.0)),
-    ..default()
-    },
-        Transform{
-            translation: Vec3::new(0., 0., -1.),
-            ..default()
-        },
-        PopupTimer{
-            timer: Timer::from_seconds(3.0, TimerMode::Once),
-            layer:1.0,
+    let slide_paths = [
+        "DannyGallagherNameSlide.png",
+        "image0.png",
+        "Ishay_cred.png",
+        "Gio_cred.png",
+        "PollyNanevaCredits.png",
+        "sam_cred.png",
+    ];
 
-        },
-     
-    ));
-    commands.spawn((
-        Sprite::from_image(asset_server.load("img/Ishay_cred.png")),
-        Transform{
-            translation: Vec3::new(0., 0., -1.),
-            ..default()
-        },
-        PopupTimer{
-            timer: Timer::from_seconds(6.0, TimerMode::Once),
-            layer:2.0,
+    let slides: Vec<Entity> = slide_paths
+        .iter()
+        .enumerate()
+        .map(|(i, path)| {
+            commands
+                .spawn((
+                    Sprite {
+                        image: asset_server.load(*path),
+                        custom_size: Some(SLIDE_SIZE),
+                        ..default()
+                    },
+                    Transform::from_xyz(0., 0., 0.),
+                    CreditSlide,
+                    if i == 0 {
+                        Visibility::Visible
+                    } else {
+                        Visibility::Hidden
+                    },
+                ))
+                .id()
+        })
+        .collect();
 
-        },
-     
-    ));
-    commands.spawn((
-        Sprite::from_image(asset_server.load("img/Gio_cred.png")),
-        Transform{
-            translation: Vec3::new(0., 0., -1.),
-            ..default()
-        },
-        PopupTimer{
-            timer: Timer::from_seconds(9.0, TimerMode::Once),
-            layer:3.0,
-
-        },
-     
-    ));
-     commands.spawn((
-        Sprite::from_image(asset_server.load("img/PollyNanevaCredits.png")),
-        Transform{
-            translation: Vec3::new(0., 0., -1.),
-            ..default()
-        },
-        PopupTimer{
-            timer: Timer::from_seconds(12.0, TimerMode::Once),
-            layer:4.0,
-
-        },
-     
-    ));
-     commands.spawn((
-        Sprite::from_image(asset_server.load("img/sam_cred.png")),
-        Transform{
-            translation: Vec3::new(0., 0., -1.),
-            ..default()
-        },
-        PopupTimer{
-            timer: Timer::from_seconds(15.0, TimerMode::Once),
-            layer:5.0,
-
-        },
-     
-    ));
-   
+    commands.insert_resource(SlideShow {
+        timer: Timer::from_seconds(3.0, TimerMode::Repeating),
+        index: 0,
+        slides,
+    });
 }
 
-fn show_popup(time: Res<Time>, mut popup: Query<(&mut PopupTimer, &mut Transform)>) {
-    for (mut popup, mut transform) in popup.iter_mut() {
-        popup.timer.tick(time.delta());
-        if popup.timer.just_finished() {
-            transform.translation.z = popup.layer;
+fn cycle_slides(
+    time: Res<Time>,
+    mut show: ResMut<SlideShow>,
+    mut visibility: Query<&mut Visibility, With<CreditSlide>>,
+) {
+    if show.timer.tick(time.delta()).just_finished() {
+        let next = (show.index + 1) % show.slides.len();
+        if let Ok(mut v) = visibility.get_mut(show.slides[show.index]) {
+            *v = Visibility::Hidden;
         }
+        if let Ok(mut v) = visibility.get_mut(show.slides[next]) {
+            *v = Visibility::Visible;
+        }
+        show.index = next;
     }
 }
