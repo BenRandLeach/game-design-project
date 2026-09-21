@@ -41,7 +41,7 @@ Gio
     
 ### Network Multiplayer
 
-**Host/Client Model:** Players connect to a server instead of peer to peer. (Separate the client code from the server code) .
+**Host/Client Model:** Players connect to a server instead of peer to peer. (Separate the client code from the server code) . We will have an authoritative server that deals with the actual state of the game. Clients and Server each have their own folder. Looking into a rollback system where the client does calculations locally (client side prediction), and then that is checked with the Server. If no problems good, if there are we rollback. To rollback we can compare the differences in the game instances, if too much there will be a laggy jump, otherwise we could slowly sync up the client to the server. For example, if the client had a rocket moving a little too fast, the server could send signals to make it slower until its at the right location.
 
 **Real Time State Sync:** Everything stays synchronized between clients like block placements, currency, and attacks. We will have the game running at a set tick amount. Using a fixed update we can set the tick amount to our desired amount. To start looking at using 30hz but if that does not play well we can increase the value. (Looking at using the Tokio crate to help with staying in sync).
 
