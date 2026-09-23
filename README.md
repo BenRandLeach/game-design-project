@@ -37,8 +37,8 @@ Gio
 
 For our physics engine we will need to calculate the velocities, accelerations, and positions for each physics supporting object in the game scene. This will be done using the Semi-Implicit Euler Integration method which states: 
 
-Vn+1 = Vn + hAn
-Xn+1 = Xn + hVn+1
+V<sub>n+1</sub> = V<sub>n</sub> + hA<sub>n</sub>
+X<sub>n+1</sub> = X<sub>n</sub> + hV<sub>n+1</sub>
 
 Where h = change in time = Δt, V = velocity, X = position, A = acceleration.
 
