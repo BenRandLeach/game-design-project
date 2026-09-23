@@ -35,9 +35,30 @@ Gio
 
 **Rigid-Body Simulation:** Different building block texture types with distinct mass, friction, and collision responses. 
 
+For our physics engine we will need to calculate the velocities, accelerations, and positions for each physics supporting object in the game scene. This will be done using the Semi-Implicit Euler Integration method which states: 
+
+Vn+1 = Vn + hAn
+Xn+1 = Xn + hVn+1
+
+Where h = change in time = Δt, V = velocity, X = position, A = acceleration.
+
+We will use these equations to integrate the velocities of each object to obtain their position in the next frame. The acceleration will be initially determined only by the force of gravity, and only after interacting with other objects will a block’s acceleration change.
+
+The same calculation will also be performed on each object's angular velocity to obtain the angular momentum at any given frame.
+
+
+**Collision Detection** Using the separating axis theorem (SAT) each object will check if it is colliding with another. This theorem is used to determine if two convex shapes are intersecting. This is important for our simulation because the blocks can be rotated by the player before being dropped onto the tower below. Further, we will need to split blocks into individual cubes and re-attach to allow for the ‘convex’ requirement to hold.
+
+SAT - "If two convex objects are not penetrating, there exists an axis for which the projection of the objects will not overlap."
+
+Objects will need to be checked pairwise to determine if they overlap. For each object the normal vectors of its sides will be calculated, and these normals will be the axes for which we will project the objects. According to SAT, if any of these projections has a gap, then the two objects are not overlapping. If this narrow phase algorithm proves to be too slow, we may also implement a broad phase collision detection algorithm to reduce the number of collision checks per frame.
+
 **Structure Stability:** Towers lean, wobble, and topple over based on weight distribution and block type.
 
 **Physics Driven Attacks:** impact and knockback forces push through connected blocks for realistic, readable damage.
+
+
+
     
 ### Network Multiplayer
 
