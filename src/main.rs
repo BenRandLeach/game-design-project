@@ -2,7 +2,7 @@ use bevy::{prelude::*, window::PresentMode};
 
 mod loading;
 mod credits;
-mod game;
+//mod game;
 
 const TITLE: &str = "Better Bevy Project Setup";
 const WIN_W: f32 = 1280.;
@@ -25,7 +25,7 @@ enum GameState {
     #[default]
     Loading,
     Credits,
-    Game,
+    //Game,
 }
 
 fn main() {
@@ -47,12 +47,12 @@ fn main() {
         .add_systems(Startup, setup_camera)
         .add_systems(OnEnter(GameState::Loading), log_state_change)
         .add_systems(OnEnter(GameState::Credits), log_state_change)
-        .add_systems(OnEnter(GameState::Game), log_state_change)
+        //.add_systems(OnEnter(GameState::Game), log_state_change)
         // Add all subsystems
         .add_plugins((
             loading::LoadingPlugin,
             credits::CreditsPlugin,
-            game::GamePlugin,
+            //game::GamePlugin,
         ))
         // Run the game
         .run();
