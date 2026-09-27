@@ -36,7 +36,7 @@ fn mouse_button_input(
     mut next_state: ResMut<NextState<GameState>>,
 ) {
     if buttons.just_pressed(MouseButton::Left) {
-        next_state.set(GameState::Credits);
+        next_state.set(GameState::Game);
     }
 
 }
