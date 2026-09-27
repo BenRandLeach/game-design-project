@@ -1,10 +1,9 @@
 use bevy::prelude::*;
 
-use crate::{loading::LoadingAssets, GameState};
 const SLIDE_SIZE: Vec2 = Vec2::new(1280.0, 720.0);
 
-#[derive(Component)]
-struct CreditSlide;
+use crate::{GameState, PROGRESS_FRAME, PROGRESS_HEIGHT, PROGRESS_LENGTH};
+
 
 
 #[derive(Message, Default)]
@@ -39,11 +38,11 @@ fn game_mess_listener(
 fn load_game(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    mut loading_assets: ResMut<LoadingAssets>,
+    //mut loading_assets: ResMut<LoadingAssets>,
 ) {
     let game_texture_handle = asset_server.load("Tower_Balance_Background.png");
 
-    loading_assets.0.push(game_texture_handle.clone().untyped());
+    //loading_assets.0.push(game_texture_handle.clone().untyped());
     commands.insert_resource(GameScreenImage(game_texture_handle));
 }
 
