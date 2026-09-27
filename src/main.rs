@@ -1,8 +1,8 @@
 use bevy::{prelude::*, window::PresentMode};
 
-mod loading;
+mod startscreen;
 mod credits;
-//mod game;
+mod game;
 
 const TITLE: &str = "Better Bevy Project Setup";
 const WIN_W: f32 = 1280.;
@@ -23,7 +23,7 @@ const PROGRESS_FRAME: f32 = 5.;
 #[derive(States, Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum GameState {
     #[default]
-    Loading,
+    StartScreen,
     Credits,
     Game,
 }
@@ -45,12 +45,12 @@ fn main() {
         .init_state::<GameState>()
         // Add general systems
         .add_systems(Startup, setup_camera)
-        .add_systems(OnEnter(GameState::Loading), log_state_change)
+        .add_systems(OnEnter(GameState::StartScreen), log_state_change)
         .add_systems(OnEnter(GameState::Credits), log_state_change)
         .add_systems(OnEnter(GameState::Game), log_state_change)
         // Add all subsystems
         .add_plugins((
-            loading::LoadingPlugin,
+            startscreen::StartScreenPlugin,
             credits::CreditsPlugin,
             game::GamePlugin,
         ))

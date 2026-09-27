@@ -1,6 +1,5 @@
 use bevy::prelude::*;
-
-use crate::{loading::LoadingAssets, GameState};
+use crate::{GameState, PROGRESS_FRAME, PROGRESS_HEIGHT, PROGRESS_LENGTH};
 const SLIDE_SIZE: Vec2 = Vec2::new(1280.0, 720.0);
 
 #[derive(Component)]
@@ -34,7 +33,7 @@ impl Plugin for CreditsPlugin {
 fn load_credits(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    mut loading_assets: ResMut<LoadingAssets>,
+    //mut loading_assets: ResMut<LoadingAssets>,
 ) {
 
 }
