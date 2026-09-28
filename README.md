@@ -82,7 +82,8 @@ We will have to check if the IP address is available and if not choose a differe
 ## Final Goals
 
 * 10%: 2 power-ups (2x money and 2x attack speed)
-* 20%: Players can connect and play against each other with minimal lag
+* 10%: Players can connect to a server and play.
+* 10%  Actions taken by players will show up with minimal lag onto the other players screen, so they stay in sync.
 * 20%: Blocks stack, collide, and fall within our physics engine
 * 10%: 3 block types (Bank Block generates money. Wood block which is cheaper, weighs less, and easier to break. Metal block which is more expensive, weighs more, harder to break).
 * 10%: 2 attack types (Bullet bill like attack (Attacks will ignore its own teams buildings) and slingshot type (Can set attack angle and then it will automatically attack using that angle)).
