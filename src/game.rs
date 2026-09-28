@@ -5,6 +5,8 @@ const SLIDE_SIZE: Vec2 = Vec2::new(1280.0, 720.0);
 use crate::{GameState, PROGRESS_FRAME, PROGRESS_HEIGHT, PROGRESS_LENGTH};
 
 
+#[derive(Component)]
+struct Block;
 
 #[derive(Message, Default)]
 pub struct Game;
@@ -23,6 +25,7 @@ impl Plugin for GamePlugin {
             .add_systems(Update, game_mess_listener)
             .add_systems(Update, swap_to_credits.run_if(in_state(GameState::Game)))
             .add_systems(Update, spawn_block.run_if(in_state(GameState::Game)))
+            .add_systems(Update, move_blocks.run_if(in_state(GameState::Game)))
             .add_message::<Game>();
     }
 }
@@ -48,6 +51,22 @@ fn load_game(
     //commands.insert_resource(GameScreenImage(game_texture_handle));
 }
 
+fn move_blocks(
+    input: Res<ButtonInput<KeyCode>>,
+    mut block_transform: Single<&mut Transform, With<Block>>,
+){
+    let mut vel = Vec3::ZERO;
+    if input.pressed(KeyCode::KeyA) {
+        vel.x -= 1.;
+    }
+
+    if input.pressed(KeyCode::KeyD) {
+        vel.x += 1.;
+    }
+
+    block_transform.translation += vel;
+}
+
 fn spawn_block(
     mut commands: Commands,
     keyboard_input: Res<ButtonInput<KeyCode>>,
@@ -59,6 +78,7 @@ fn spawn_block(
                         image: asset_server.load("WoodBlock.png"),
                         ..default()
                     },
+                    Block,
         Transform::from_xyz(0., 0., 1.),
         
     ));
