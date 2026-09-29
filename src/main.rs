@@ -5,7 +5,7 @@ mod credits;
 mod game;
 mod physics;
 
-const TITLE: &str = "Better Bevy Project Setup";
+const TITLE: &str = "Tower Balance";
 const WIN_W: f32 = 1280.;
 const WIN_H: f32 = 720.;
 
