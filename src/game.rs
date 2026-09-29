@@ -3,6 +3,7 @@ use bevy::prelude::*;
 const SLIDE_SIZE: Vec2 = Vec2::new(1280.0, 720.0);
 
 use crate::{GameState, PROGRESS_FRAME, PROGRESS_HEIGHT, PROGRESS_LENGTH};
+use crate::physics::Velocity;
 
 
 #[derive(Component)]
@@ -53,7 +54,7 @@ fn load_game(
 
 fn move_blocks(
     input: Res<ButtonInput<KeyCode>>,
-    mut block_transform: Single<&mut Transform, With<Block>>,
+    mut blocks: Query<&mut Transform, With<Block>>,
 ){
     let mut vel = Vec3::ZERO;
     if input.pressed(KeyCode::KeyA) {
@@ -64,7 +65,9 @@ fn move_blocks(
         vel.x += 1.;
     }
 
-    block_transform.translation += vel;
+    for mut block_transform in &mut blocks {
+        block_transform.translation += vel;
+    }
 }
 
 fn spawn_block(
@@ -79,8 +82,9 @@ fn spawn_block(
                         ..default()
                     },
                     Block,
+                    Velocity::default(),
         Transform::from_xyz(0., 0., 1.),
-        
+
     ));
 }
 

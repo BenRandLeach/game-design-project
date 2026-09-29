@@ -3,6 +3,7 @@ use bevy::{prelude::*, window::PresentMode};
 mod startscreen;
 mod credits;
 mod game;
+mod physics;
 
 const TITLE: &str = "Better Bevy Project Setup";
 const WIN_W: f32 = 1280.;
@@ -53,6 +54,7 @@ fn main() {
             startscreen::StartScreenPlugin,
             credits::CreditsPlugin,
             game::GamePlugin,
+            physics::PhysicsPlugin,
         ))
         // Run the game
         .run();
