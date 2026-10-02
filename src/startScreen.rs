@@ -41,18 +41,14 @@ fn mouse_button_input(
 
 }
 
-fn setup_startscreen(mut commands: Commands) {
+fn setup_startscreen(mut commands: Commands,asset_server: Res<AssetServer>,) {
     commands.spawn((
-        Sprite::from_color(Color::BLACK, Vec2::ONE),
-        Transform {
-            scale: Vec3::new(
-                PROGRESS_LENGTH + PROGRESS_FRAME,
-                PROGRESS_HEIGHT + PROGRESS_FRAME,
-                0.,
-            ),
-            ..default()
-        },
-        StartScreenProgressFrame,
+        Sprite {
+                        image: asset_server.load("Tower_Balance_Start.png"),
+                        ..default()
+                    },
+        Transform::from_xyz(0., 0., 0.),
+
     ));
 }
 
