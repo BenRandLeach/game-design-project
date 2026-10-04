@@ -1,33 +1,49 @@
-use std::{
-    io::prelude::*,
-    net::{IpAddr, Ipv4Addr, SocketAddr,  UdpSocket},
-    thread,
-};
-use bevy::{prelude::*};
-use rand::{prelude::*};
-
+use bevy::prelude::*;
+use std::{io::ErrorKind, net::UdpSocket};
 
 pub struct ClientPlugin;
+
 impl Plugin for ClientPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, client_listener);
-           
+        app.add_systems(Startup, setup_client_socket)
+            .add_systems(Update, client_listener);
     }
 }
 
-fn client_listener()-> Result<()>
-{
+#[derive(Resource)]
+struct ClientSocket(UdpSocket);
 
-    let socket = UdpSocket::bind("0.0.0.0:0")?;
-    let server_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 34254);
-    println!("Sending UDP datagram to {}:{}", "127.0.0.1", "34254");
-    //let listener = UdpSocket::bind("127.0.0.1:34254");
-    //let cli = Cli::parse();
-    //let socket = UdpSocket::bind("127.0.0.1:34254")?;
-    //info!("Listening @{}", socket.local_addr()?);
-    Ok(())
+fn setup_client_socket(mut commands: Commands) {
+    let socket = UdpSocket::bind("127.0.0.1:7777").expect("couldn't bind client socket");
+    socket
+        .set_nonblocking(true)
+        .expect("couldn't set socket to nonblocking");
+
+    commands.insert_resource(ClientSocket(socket));
 }
 
+fn client_listener(mut client: ResMut<ClientSocket>) {
+    if !client.sent_request {
+        let bytes_sent = client
+            .socket
+            .send_to(b"hii", "127.0.0.1:7777")
+            .expect("couldn't send to server");
+        println!("sent {bytes_sent} bytes to server");
+        client.sent_request = true;
+    }
+
+    let mut buf = [0; 1024];
+    match client.socket.recv_from(&mut buf) {
+        Ok((bytes_read, from)) => {
+            println!(
+                "got {bytes_read} bytes from {from}: {:?}",
+                &buf[..bytes_read]
+            );
+        }
+        Err(error) if error.kind() == ErrorKind::WouldBlock => {}
+        Err(error) => panic!("couldn't receive from server: {error}"),
+    }
+}
 
 /*
 #[derive(Parser)]

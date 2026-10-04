@@ -1,34 +1,38 @@
 use std::{
     io::prelude::*,
-    net::{IpAddr, Ipv4Addr, SocketAddr,  UdpSocket},
+    net::{IpAddr, Ipv4Addr, SocketAddr, UdpSocket},
     thread,
 };
 
-
-use bevy::{prelude::*};
-use rand::{prelude::*};
-
+use bevy::prelude::*;
 
 //static PLAYERCOUNT: AtomicI32 = AtomicI32::new(0);
-
 
 pub struct ServerPlugin;
 impl Plugin for ServerPlugin {
     fn build(&self, app: &mut App) {
+        app.add_systems(Startup, setup_server_socket);
         app.add_systems(Update, server_listener);
-           
     }
 }
 
-fn server_listener()-> Result<()>
-{
-    //let listener = UdpSocket::bind("127.0.0.1:34254");
-    //let cli = Cli::parse();
-    let socket = UdpSocket::bind("127.0.0.1:34254")?;
-    info!("Listening @{}", socket.local_addr()?);
-    Ok(())
+#[derive(Resource)]
+struct ServerSocket(UdpSocket);
+fn setup_server_socket(mut commands: Commands) {
+    let socket = UdpSocket::bind("127.0.0.1:7777").expect("couldn't bind");
+    commands.insert_resource(ServerSocket(socket));
 }
 
+fn server_listener(socket: Res<ServerSocket>) {
+    //let listener = UdpSocket::bind("127.0.0.1:34254");
+    //let cli = Cli::parse();
+    let message = "hii";
+    let n = socket
+        .0
+        .send_to(message.as_bytes(), "127.0.0.1:7777")
+        .expect("couldn't send");
+    println!("sent {n} bytes");
+}
 
 /*fn handle_connection(mut stream: UdpStream) -> Result<()> {
     let peer_addr = stream.peer_addr()?;
@@ -61,4 +65,3 @@ fn server_listener()-> Result<()>
 
     Ok(())
 }*/
-
