@@ -9,6 +9,9 @@ use crate::physics::Velocity;
 #[derive(Component)]
 struct Block;
 
+#[derive(Component)]
+struct Ammo;
+
 #[derive(Message, Default)]
 pub struct Game;
 
@@ -24,8 +27,10 @@ impl Plugin for GamePlugin {
         app.add_systems(Startup, load_game)
             .add_systems(OnEnter(GameState::Game), setup_game)
             .add_systems(Update, game_mess_listener)
-            .add_systems(Update, swap_to_credits.run_if(in_state(GameState::Game)))
+            .add_systems(Update, swap_to_credits.run_if(in_state(GameState::Credits)))
             .add_systems(Update, spawn_block.run_if(in_state(GameState::Game)))
+            .add_systems(Update, spawn_slingshot.run_if(in_state(GameState::Game)))
+            .add_systems(Update, launch_cannonball.run_if(in_state(GameState::Game)))
             .add_systems(Update, move_blocks.run_if(in_state(GameState::Game)))
             .add_message::<Game>();
     }
@@ -70,11 +75,7 @@ fn move_blocks(
     }
 }
 
-fn spawn_block(
-    mut commands: Commands,
-    keyboard_input: Res<ButtonInput<KeyCode>>,
-    asset_server: Res<AssetServer>,
-) {
+fn spawn_block(mut commands: Commands,keyboard_input: Res<ButtonInput<KeyCode>>,asset_server: Res<AssetServer>,) {
     if keyboard_input.just_pressed(KeyCode::KeyB) {
     commands.spawn((
         Sprite {
@@ -86,15 +87,41 @@ fn spawn_block(
         Transform::from_xyz(0., 0., 1.),
 
     ));
+    }
 }
 
+fn spawn_slingshot(mut commands: Commands,keyboard_input: Res<ButtonInput<KeyCode>>,asset_server: Res<AssetServer>,) {
+    if keyboard_input.just_pressed(KeyCode::KeyN) {
+        commands.spawn((Sprite {image: asset_server.load("slingshot.png"), ..default()}, 
+                                Block,Velocity::default(), 
+                                Transform::from_xyz(0., 0., 2.),));
+        commands.spawn((Sprite {image: asset_server.load("cannonball.png"), ..default()}, 
+                                Ammo,Velocity::default(), 
+                                Transform::from_xyz(0., 0., 1.),));
+    }
+}
+
+fn launch_cannonball(mut cannonballs: Query<&mut Velocity, With<Ammo>>, keyboard_input: Res<ButtonInput<KeyCode>>,) {
+    if keyboard_input.just_pressed(KeyCode::KeyM) {
+        let mut accel = Vec2::ZERO;
+
+        if keyboard_input.just_pressed(KeyCode::KeyM) {
+           let launch_vel = Vec2::new(300.0, 1000.0);
+
+           for mut velocity in &mut cannonballs {
+                velocity.0 = launch_vel;
+           }
+        }
+    }
 }
 
 fn swap_to_credits(
     keyboard_input: Res<ButtonInput<KeyCode>>,
+    mut commands: Commands,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
     if keyboard_input.just_pressed(KeyCode::KeyC) {
+        // also need to clear all blocks here!
         next_state.set(GameState::Credits);
     }
 
