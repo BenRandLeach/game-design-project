@@ -33,7 +33,7 @@ impl Plugin for GamePlugin {
         app.add_systems(Startup, load_game)
             .add_systems(OnEnter(GameState::Game), setup_game)
             .add_systems(Update, game_mess_listener)
-            .add_systems(Update, swap_to_credits.run_if(in_state(GameState::Credits)))
+            .add_systems(Update, swap_to_credits.run_if(in_state(GameState::Game)))
             .add_systems(Update, spawn_block.run_if(in_state(GameState::Game)))
             .add_systems(Update, spawn_slingshot.run_if(in_state(GameState::Game)))
             .add_systems(Update, launch_cannonball.run_if(in_state(GameState::Game)))

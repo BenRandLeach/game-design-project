@@ -4,6 +4,8 @@ mod startscreen;
 mod credits;
 mod game;
 mod physics;
+mod server;
+mod client;
 
 const TITLE: &str = "Tower Balance";
 const WIN_W: f32 = 1280.;
@@ -55,6 +57,8 @@ fn main() {
             credits::CreditsPlugin,
             game::GamePlugin,
             physics::PhysicsPlugin,
+            server::ServerPlugin,
+            client::ClientPlugin,
         ))
         // Run the game
         .run();
