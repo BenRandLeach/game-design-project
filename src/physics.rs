@@ -1,12 +1,18 @@
 use crate::game::NewEntity;
 use crate::game::Block;
-use crate::{GameState, WIN_H};
+use crate::game::BeingPlaced;
+use crate::{GameState, WIN_H, WIN_W};
 use bevy::math::bounding::{Aabb2d, BoundingVolume, IntersectsVolume};
 use bevy::input::mouse::MouseButton::Right;
 use bevy::prelude::*;
 
 const GRAVITY: f32 = -980.0;
 const GROUND_Y: f32 = -WIN_H / 2.0;
+const LEFT: f32 = -WIN_W / 2.0;
+const RIGHT: f32 = WIN_W / 2.0;
+const TOWER_BASE_Y: f32 = (-WIN_H / 2.0) + 20.0;
+const EDGE_TO_TOWER: f32 = 48.0; // 48px between base and border, 8px is half the width of a block
+const BASE_WIDTH: f32 = 256.0;
 
 // TODO(physics): hardcoded for WoodBlock.png (48px); replace with a
 // per-entity half-extent once AABB/SAT collision lands.
@@ -25,6 +31,7 @@ impl Plugin for PhysicsPlugin {
                 integrate_velocity,
                 resolve_ground_collision,
                 resolve_block_collision,
+                bound_placement,
             )
                 .chain()
                 .run_if(in_state(GameState::Game)),
@@ -33,8 +40,7 @@ impl Plugin for PhysicsPlugin {
 }
 
 // Semi-implicit Euler: update velocity first, then move using the new velocity.
-fn integrate_velocity(time: Res<Time>, mut bodies: Query<(&mut Transform, &mut Velocity), With<NewEntity>>
-) {
+fn integrate_velocity(time: Res<Time>, mut bodies: Query<(&mut Transform, &mut Velocity), Without<BeingPlaced>>) {
     let dt = time.delta_secs();
     for (mut transform, mut velocity) in &mut bodies {
         velocity.y += GRAVITY * dt;
@@ -47,10 +53,46 @@ fn integrate_velocity(time: Res<Time>, mut bodies: Query<(&mut Transform, &mut V
 fn resolve_ground_collision(mut bodies: Query<(&mut Transform, &mut Velocity)>) {
     for (mut transform, mut velocity) in &mut bodies {
         let bottom = transform.translation.y - BLOCK_HALF_HEIGHT;
-        if bottom < GROUND_Y {
-            transform.translation.y = GROUND_Y + BLOCK_HALF_HEIGHT;
+        let top = transform.translation.y + BLOCK_HALF_HEIGHT;
+        let right = transform.translation.x + BLOCK_HALF_WIDTH;
+        let left = transform.translation.x - BLOCK_HALF_WIDTH;
+        if(right > (LEFT + EDGE_TO_TOWER) && left < (LEFT + EDGE_TO_TOWER + BASE_WIDTH) && bottom < TOWER_BASE_Y) {
+            transform.translation.y = TOWER_BASE_Y + BLOCK_HALF_HEIGHT;
             velocity.y = 0.0;
         }
+        /*if top < GROUND_Y {
+            REMOVE BLOCK ENTITY
+        }*/
+    }
+}
+pub fn bound_placement(mut bodies: Query<(Entity,&mut Transform, &mut Velocity), 
+ With<BeingPlaced>>,
+mut commands: Commands,keyboard_input: Res<ButtonInput<KeyCode>>,
+) {
+    for (entity, mut transform, mut velocity) in &mut bodies {
+        let right = transform.translation.x + BLOCK_HALF_WIDTH;
+        let left = transform.translation.x - BLOCK_HALF_WIDTH;
+        //if(left player)
+        if left < (LEFT + EDGE_TO_TOWER) {
+            transform.translation.x = LEFT + EDGE_TO_TOWER + BLOCK_HALF_WIDTH;
+            velocity.x = 0.0;
+        }
+        else if right > (LEFT + EDGE_TO_TOWER + BASE_WIDTH) {
+            transform.translation.x = LEFT + EDGE_TO_TOWER - BLOCK_HALF_WIDTH + BASE_WIDTH;
+            velocity.x = 0.0;
+        }
+        if keyboard_input.just_pressed(KeyCode::KeyS) {
+            commands.entity(entity).remove::<BeingPlaced>();           
+        }
+        /*if(right player)
+        if(left < (RIGHT - EDGE_TO_TOWER - BASE_WIDTH)) {
+            transform.translation.x = LEFT + EDGE_TO_TOWER + BASE_WIDTH;
+            velocity.x = 0.0;
+        }
+        else if(right > (RIGHT - EDGE_TO_TOWER)) {
+            transform.translation.x = RIGHT - EDGE_TO_TOWER - BLOCK_HALF_WIDTH;
+            velocity.x = 0.0;
+        }*/
     }
 }
 pub fn resolve_block_collision(
@@ -70,6 +112,7 @@ pub fn resolve_block_collision(
             );
             let dx = (active_box.center().x - other_box.center().x).abs();
             let dy = (active_box.center().y - other_box.center().y).abs();
+            //println!("Current active block position: {:?}", active_transform.translation);
             if active_box.intersects(&other_box) {
                 if dy > dx && active_velocity.y < 0.0 {
                     active_transform.translation.y =

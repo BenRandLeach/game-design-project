@@ -2,12 +2,23 @@ use bevy::prelude::*;
 
 const SLIDE_SIZE: Vec2 = Vec2::new(1280.0, 720.0);
 
-use crate::{GameState, PROGRESS_FRAME, PROGRESS_HEIGHT, PROGRESS_LENGTH};
+use crate::{GameState, PROGRESS_FRAME, PROGRESS_HEIGHT, PROGRESS_LENGTH, WIN_H, WIN_W};
 use crate::physics::Velocity;
 use crate::physics::resolve_block_collision;
+use crate::physics::bound_placement;
+
+const GROUND_Y: f32 = -WIN_H / 2.0;
+const LEFT: f32 = -WIN_W / 2.0;
+const RIGHT: f32 = WIN_W / 2.0;
+const TOWER_BASE_Y: f32 = (-WIN_H / 2.0) + 20.0;
+const EDGE_TO_TOWER: f32 = 48.0; // 48px between base and border, 8px is half the width of a block
+const BASE_WIDTH: f32 = 256.0;
 
 #[derive(Component)]
 pub struct Block;
+
+#[derive(Component)]
+pub struct BeingPlaced;
 
 #[derive(Component)]
 pub struct NewEntity;
@@ -40,6 +51,7 @@ impl Plugin for GamePlugin {
             .add_systems(Update, move_blocks.run_if(in_state(GameState::Game)))
             .insert_resource(CurrentlyActive::default())
             .add_systems(Update, resolve_block_collision.run_if(in_state(GameState::Game)))
+            .add_systems(Update, bound_placement.run_if(in_state(GameState::Game)))
             .add_message::<Game>();
     }
 }
@@ -99,8 +111,9 @@ fn spawn_block(mut commands: Commands,keyboard_input: Res<ButtonInput<KeyCode>>,
                     },
                     Block,
                     NewEntity,
+                    BeingPlaced,
                     Velocity::default(),
-        Transform::from_xyz(0., 0., 1.),
+        Transform::from_xyz(LEFT + EDGE_TO_TOWER + BASE_WIDTH / 2.0, 275., 1.),
 )).id();
     currently_active.0 = Some(entity);
     }
@@ -154,7 +167,7 @@ fn setup_game(
 ) {
     commands.spawn((
         Sprite {
-                        image: asset_server.load("Tower_Balance_Background.png"),
+                        image: asset_server.load("Tower_outline.png"),
                         custom_size: Some(SLIDE_SIZE),
                         ..default()
                     },
