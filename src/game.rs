@@ -168,12 +168,22 @@ fn setup_game(
     commands.spawn((
         Sprite {
                         image: asset_server.load("Tower_outline.png"),
+                        color: Color::srgba(1.0, 1.0, 1.0, 1.0),
+                        custom_size: Some(SLIDE_SIZE),
+                        ..default()
+                    },
+        Transform::from_xyz(0., 0., 0.1),
+        
+    ));
+    commands.spawn((
+        Sprite {
+                        image: asset_server.load("Tower_Balance_Background.png"),
+                        color: Color::srgba(1.0, 1.0, 1.0, 0.9),
                         custom_size: Some(SLIDE_SIZE),
                         ..default()
                     },
         Transform::from_xyz(0., 0., 0.),
         
     ));
-
     camera.translation.x = 0.;
 }
