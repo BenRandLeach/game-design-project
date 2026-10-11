@@ -8,6 +8,9 @@ struct StartScreenProgressFrame;
 #[derive(Component)]
 struct StartScreenProgress;
 
+#[derive(Component)]
+struct StartScreen;
+
 #[derive(Resource, Deref, DerefMut)]
 pub struct StartScreenAssets(pub Vec<UntypedHandle>);
 
@@ -23,6 +26,7 @@ impl Plugin for StartScreenPlugin {
             .add_systems(
                 OnExit(GameState::StartScreen),
                 (
+                    despawn_with::<StartScreen>,
                     despawn_with::<StartScreenProgressFrame>,
                     despawn_with::<StartScreenProgress>,
                     free_startscreen_handles,
@@ -43,10 +47,9 @@ fn mouse_button_input(
 
 fn setup_startscreen(mut commands: Commands,asset_server: Res<AssetServer>,) {
     commands.spawn((
-        Sprite {
-                        image: asset_server.load("Tower_Balance_Start.png"),
-                        ..default()
-                    },
+        Sprite 
+                        {image: asset_server.load("Tower_Balance_Start.png"), ..default()},
+                        StartScreen,
         Transform::from_xyz(0., 0., 0.),
 
     ));
