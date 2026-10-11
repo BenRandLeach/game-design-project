@@ -21,6 +21,9 @@ pub struct Block;
 pub struct BeingPlaced;
 
 #[derive(Component)]
+pub struct JustDropped;
+
+#[derive(Component)]
 pub struct NewEntity;
 
 #[derive(Resource, Default)]
@@ -48,7 +51,7 @@ impl Plugin for GamePlugin {
             .add_systems(Update, spawn_block.run_if(in_state(GameState::Game)))
             .add_systems(Update, spawn_slingshot.run_if(in_state(GameState::Game)))
             .add_systems(Update, launch_cannonball.run_if(in_state(GameState::Game)))
-            .add_systems(Update, move_blocks.run_if(in_state(GameState::Game)))
+            //.add_systems(Update, move_blocks.run_if(in_state(GameState::Game)))
             .insert_resource(CurrentlyActive::default())
             .add_systems(Update, resolve_block_collision.run_if(in_state(GameState::Game)))
             .add_systems(Update, bound_placement.run_if(in_state(GameState::Game)))
@@ -99,7 +102,14 @@ fn move_blocks(
     }
 
 
-fn spawn_block(mut commands: Commands,keyboard_input: Res<ButtonInput<KeyCode>>,asset_server: Res<AssetServer>, mut currently_active: ResMut<CurrentlyActive>,) {
+fn spawn_block(mut commands: Commands,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    asset_server: Res<AssetServer>, 
+    mut currently_active: ResMut<CurrentlyActive>, 
+    being_placed: Query<Entity, With<BeingPlaced>>,) {
+    if being_placed.iter().count() > 0 {
+        return;
+    }
     if keyboard_input.just_pressed(KeyCode::KeyB) {
     if let Some(active_entity) = currently_active.0 {
             commands.entity(active_entity).remove::<NewEntity>();
@@ -110,9 +120,9 @@ fn spawn_block(mut commands: Commands,keyboard_input: Res<ButtonInput<KeyCode>>,
                         ..default()
                     },
                     Block,
-                    NewEntity,
+                    JustDropped,
                     BeingPlaced,
-                    Velocity::default(),
+                    Velocity(Vec2::new(2.,0.)),
         Transform::from_xyz(LEFT + EDGE_TO_TOWER + BASE_WIDTH / 2.0, 275., 1.),
 )).id();
     currently_active.0 = Some(entity);

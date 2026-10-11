@@ -1,6 +1,7 @@
 use crate::game::NewEntity;
 use crate::game::Block;
 use crate::game::BeingPlaced;
+use crate::game::JustDropped;
 use crate::{GameState, WIN_H, WIN_W};
 use bevy::math::bounding::{Aabb2d, BoundingVolume, IntersectsVolume};
 use bevy::input::mouse::MouseButton::Right;
@@ -40,7 +41,7 @@ impl Plugin for PhysicsPlugin {
 }
 
 // Semi-implicit Euler: update velocity first, then move using the new velocity.
-fn integrate_velocity(time: Res<Time>, mut bodies: Query<(&mut Transform, &mut Velocity), Without<BeingPlaced>>) {
+fn integrate_velocity(time: Res<Time>, mut bodies: Query<(&mut Transform, &mut Velocity), (With<JustDropped>, Without<BeingPlaced>),>,) {
     let dt = time.delta_secs();
     for (mut transform, mut velocity) in &mut bodies {
         velocity.y += GRAVITY * dt;
@@ -50,39 +51,44 @@ fn integrate_velocity(time: Res<Time>, mut bodies: Query<(&mut Transform, &mut V
 }
 
 // Ground-plane clamp only; block-vs-block collision is future work.
-fn resolve_ground_collision(mut bodies: Query<(&mut Transform, &mut Velocity)>) {
-    for (mut transform, mut velocity) in &mut bodies {
+fn resolve_ground_collision(mut bodies: Query<(Entity, &mut Transform, &mut Velocity)>,
+mut commands: Commands,keyboard_input: Res<ButtonInput<KeyCode>>,
+) {
+    for (entity, mut transform, mut velocity) in &mut bodies {
         let bottom = transform.translation.y - BLOCK_HALF_HEIGHT;
         let top = transform.translation.y + BLOCK_HALF_HEIGHT;
         let right = transform.translation.x + BLOCK_HALF_WIDTH;
         let left = transform.translation.x - BLOCK_HALF_WIDTH;
-        if(right > (LEFT + EDGE_TO_TOWER) && left < (LEFT + EDGE_TO_TOWER + BASE_WIDTH) && bottom < TOWER_BASE_Y) {
+        if right > (LEFT + EDGE_TO_TOWER) && left < (LEFT + EDGE_TO_TOWER + BASE_WIDTH) && bottom < TOWER_BASE_Y {
             transform.translation.y = TOWER_BASE_Y + BLOCK_HALF_HEIGHT;
             velocity.y = 0.0;
+            commands.entity(entity).remove::<JustDropped>();
         }
         /*if top < GROUND_Y {
             REMOVE BLOCK ENTITY
         }*/
     }
 }
-pub fn bound_placement(mut bodies: Query<(Entity,&mut Transform, &mut Velocity), 
- With<BeingPlaced>>,
+pub fn bound_placement(mut bodies: Query<(Entity,&mut Transform, &mut Velocity), With<BeingPlaced>>,
 mut commands: Commands,keyboard_input: Res<ButtonInput<KeyCode>>,
 ) {
     for (entity, mut transform, mut velocity) in &mut bodies {
+        transform.translation.x += velocity.x;
         let right = transform.translation.x + BLOCK_HALF_WIDTH;
         let left = transform.translation.x - BLOCK_HALF_WIDTH;
         //if(left player)
-        if left < (LEFT + EDGE_TO_TOWER) {
-            transform.translation.x = LEFT + EDGE_TO_TOWER + BLOCK_HALF_WIDTH;
-            velocity.x = 0.0;
+        if right > (LEFT + EDGE_TO_TOWER + BASE_WIDTH) {
+            //transform.translation.x = LEFT + EDGE_TO_TOWER - BLOCK_HALF_WIDTH + BASE_WIDTH;
+            velocity.x = -2.0;
         }
-        else if right > (LEFT + EDGE_TO_TOWER + BASE_WIDTH) {
-            transform.translation.x = LEFT + EDGE_TO_TOWER - BLOCK_HALF_WIDTH + BASE_WIDTH;
-            velocity.x = 0.0;
+        else if left < (LEFT + EDGE_TO_TOWER) {
+            //transform.translation.x = LEFT + EDGE_TO_TOWER + BLOCK_HALF_WIDTH;
+            velocity.x = 2.0;
         }
         if keyboard_input.just_pressed(KeyCode::KeyS) {
-            commands.entity(entity).remove::<BeingPlaced>();           
+            velocity.x = 0.0;
+            commands.entity(entity).remove::<BeingPlaced>();       
+            commands.entity(entity).insert(JustDropped);    
         }
         /*if(right player)
         if(left < (RIGHT - EDGE_TO_TOWER - BASE_WIDTH)) {
@@ -96,10 +102,11 @@ mut commands: Commands,keyboard_input: Res<ButtonInput<KeyCode>>,
     }
 }
 pub fn resolve_block_collision(
-    mut active: Query<(&mut Transform, &mut Velocity), With<NewEntity>>,
-    other_blocks: Query<&Transform, (With<Block>, Without<NewEntity>)>,
+    mut commands: Commands,
+    mut active: Query<(Entity, &mut Transform, &mut Velocity), With<JustDropped>>,
+    other_blocks: Query<&Transform, (With<Block>, Without<JustDropped>)>,
 ) {
-    if let Ok((mut active_transform, mut active_velocity)) = active.single_mut() {
+    if let Ok((entity, mut active_transform, mut active_velocity)) = active.single_mut() {
 
         for other_transform in &other_blocks {
             let active_box = Aabb2d::new(
@@ -118,6 +125,7 @@ pub fn resolve_block_collision(
                     active_transform.translation.y =
                         other_transform.translation.y + BLOCK_HALF_HEIGHT * 2.0;
                     active_velocity.y = 0.0;
+                    commands.entity(entity).remove::<JustDropped>();
                 }
                 else if dx > dy && active_velocity.x < 0.0 {
                     active_transform.translation.x =
