@@ -59,19 +59,21 @@ impl Plugin for StartScreenPlugin {
 fn spawn_IP_Text(mut commands: Commands, asset_server: Res<AssetServer>) {
 
     let root = commands
-        .spawn(Node {
+        .spawn((Node {
             align_items: AlignItems::Center,
             flex_direction: FlexDirection::Column,
             padding: px(20).all(),
             row_gap: px(16),
             margin: auto().all(),
             ..default()
-        })
+        },
+        StartScreen,
+    ))
         .id();
 
     let text_instructions = commands
         .spawn((
-            Text::new("Enter to submit text\nTab to switch inputs\nLeft tab is for connecting to a server\nRight tab is for hosting a server"),
+            Text::new("Tab to select the box\nType the host's IP and press Enter to connect\nThe host doesn't need to type anything"),
             TextFont {
                 
                 font_size: FontSize::Px(25.0),
@@ -83,7 +85,7 @@ fn spawn_IP_Text(mut commands: Commands, asset_server: Res<AssetServer>) {
         .id();
 
     let text_input_left = build_input_text(&mut commands, true, 24.0);
-    let text_input_right = build_input_text(&mut commands, false, 24.0);
+   // let text_input_right = build_input_text(&mut commands, false, 24.0);
 
     let input_container = commands
         .spawn((
@@ -121,7 +123,7 @@ fn spawn_IP_Text(mut commands: Commands, asset_server: Res<AssetServer>) {
 
     commands
         .entity(input_container)
-        .add_children(&[text_input_left, text_input_right]);
+        .add_children(&[text_input_left]);
 
     commands
         .entity(root)
@@ -178,17 +180,23 @@ fn setup_startscreen(mut commands: Commands,asset_server: Res<AssetServer>,) {
 }
 
 fn text_submission(
+    mut commands : Commands,
     input_focus: Res<InputFocus>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut text_input: Query<(&mut EditableText, &Name)>,
+    mut text_input: Query<(&mut EditableText, &Name, &TabIndex)>,
     mut text_output: Single<&mut Text, With<TextOutput>>,
 ) {
     if keyboard_input.just_pressed(KeyCode::Enter)
         && let Some(focused_entity) = input_focus.get()
-        && let Ok((mut text_input, name)) = text_input.get_mut(focused_entity)
+        && let Ok((mut text_input, name, tab)) = text_input.get_mut(focused_entity)
     {
-        text_output.0 = format!("{:}: {:}", name, text_input.value());
-
+        let typed = text_input.value().to_string();
+        if tab.0 == 0{
+            text_output.0 = crate::client::connect(&mut commands, typed.trim());
+        }
+        else{
+            text_output.0 = format!("{:}: {:}", name, typed.trim());
+        }
         text_input.clear();
     }
 }
