@@ -50,6 +50,9 @@ impl Plugin for StartScreenPlugin {
                     despawn_with::<StartScreen>,
                     despawn_with::<StartScreenProgressFrame>,
                     despawn_with::<StartScreenProgress>,
+                    despawn_with::<TextOutput>,
+                    despawn_with::<EditableText>,
+                    despawn_with::<Text>,
                     free_startscreen_handles,
                 ),
             );
