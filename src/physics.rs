@@ -85,10 +85,8 @@ pub fn resolve_block_collision(
                     active_transform.translation.x =
                         other_transform.translation.x - BLOCK_HALF_WIDTH * 2.0;
                     active_velocity.x = 0.0;
-                }
-                
+                } 
             }
-            
         }
     }
 }

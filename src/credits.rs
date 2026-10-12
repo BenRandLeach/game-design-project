@@ -42,7 +42,7 @@ fn setup_credits(mut commands: Commands, asset_server: Res<AssetServer>) {
 
     let slide_paths = [
         "DannyGallagherNameSlide.png",
-        "image0.png",
+        "ben_credts.png",
         "Ishay_cred.png",
         "Gio_cred.png",
         "PollyNanevaCredits.png",

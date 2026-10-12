@@ -10,6 +10,9 @@ use crate::physics::resolve_block_collision;
 pub struct Block;
 
 #[derive(Component)]
+pub struct Slingshot;
+
+#[derive(Component)]
 pub struct NewEntity;
 
 #[derive(Resource, Default)]
@@ -109,14 +112,12 @@ fn spawn_block(mut commands: Commands,keyboard_input: Res<ButtonInput<KeyCode>>,
 fn spawn_slingshot(mut commands: Commands,keyboard_input: Res<ButtonInput<KeyCode>>,asset_server: Res<AssetServer>, mut currently_active: ResMut<CurrentlyActive>,) {
     if keyboard_input.just_pressed(KeyCode::KeyN) {
         let slingshot = commands.spawn((Sprite {image: asset_server.load("slingshot.png"), ..default()}, 
-                                Block,Velocity::default(), 
+                                Slingshot,
+                                Block,
+                                Velocity::default(), 
                                 NewEntity,
                                 Transform::from_xyz(0., 0., 2.),)).id();
                                 currently_active.0 = Some(slingshot);
-        commands.spawn((Sprite {image: asset_server.load("cannonball.png"), ..default()}, 
-                                Ammo,Velocity::default(), 
-                                NewEntity,
-                                Transform::from_xyz(0., 0., 1.),));
     }
 }
 
