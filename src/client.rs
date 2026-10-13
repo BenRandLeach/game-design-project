@@ -74,7 +74,7 @@ fn network_ui(mut commands: Commands,client: Option<Res<ClientSocket>>){
             justify_content: JustifyContent::Center,
             ..default()
         },
-        BackgroundColor(DARK_GREY.into()),
+        BackgroundColor(DARK_BLUE.into()),
     )).id();
     let send_label = commands.spawn(Text::new("Send")).id();
     let status = commands.spawn((Text::new(status_mess), statusText)).id();
