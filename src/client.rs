@@ -1,5 +1,5 @@
 use std::{io::ErrorKind, net::{SocketAddr, UdpSocket}};
-use bevy::{color::palettes::css::DARK_GREY, window::WindowEvent::PanGesture};
+use bevy::{color::palettes::css::DARK_BLUE, window::WindowEvent::PanGesture};
 use bevy::prelude::*;
 use crate::GameState;
 
@@ -74,7 +74,7 @@ fn network_ui(mut commands: Commands,client: Option<Res<ClientSocket>>){
             justify_content: JustifyContent::Center,
             ..default()
         },
-        BackgroundColor(DARK_GREY.into()),
+        BackgroundColor(DARK_BLUE.into()),
     )).id();
     let send_label = commands.spawn(Text::new("Send")).id();
     let status = commands.spawn((Text::new(status_mess), statusText)).id();
