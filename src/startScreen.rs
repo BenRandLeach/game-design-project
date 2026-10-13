@@ -14,7 +14,7 @@ struct StartScreen;
 #[derive(Resource, Deref, DerefMut)]
 pub struct StartScreenAssets(pub Vec<UntypedHandle>);
 
-use bevy::color::palettes::css::DARK_GREY;
+use bevy::color::palettes::css::DARK_BLUE;
 
 use bevy::color::palettes::tailwind::SLATE_300;
 
@@ -50,9 +50,6 @@ impl Plugin for StartScreenPlugin {
                     despawn_with::<StartScreen>,
                     despawn_with::<StartScreenProgressFrame>,
                     despawn_with::<StartScreenProgress>,
-                    despawn_with::<TextOutput>,
-                    despawn_with::<EditableText>,
-                    despawn_with::<Text>,
                     free_startscreen_handles,
                 ),
             );
@@ -83,7 +80,7 @@ fn spawn_IP_Text(mut commands: Commands, asset_server: Res<AssetServer>) {
                 ..default()
             },
             BorderColor::from(Color::from(SLATE_300)),
-            BackgroundColor(DARK_GREY.into()),
+            BackgroundColor(DARK_BLUE.into()),
         ))
         .id();
 
@@ -110,7 +107,7 @@ fn spawn_IP_Text(mut commands: Commands, asset_server: Res<AssetServer>) {
                 ..Default::default()
             },
             BorderColor::from(Color::from(SLATE_300)),
-            BackgroundColor(DARK_GREY.into()),
+            BackgroundColor(DARK_BLUE.into()),
             Text::new(""),
             TextOutput,
             TextLayout {
@@ -154,7 +151,7 @@ fn build_input_text(commands: &mut Commands, is_left: bool, font_size: f32) -> E
             },
             TextCursorStyle::default(),
             TabIndex(if is_left { 0 } else { 1 }),
-            BackgroundColor(DARK_GREY.into()),
+            BackgroundColor(DARK_BLUE.into()),
         ))
         .id()
 }
