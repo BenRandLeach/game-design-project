@@ -33,6 +33,7 @@ impl Plugin for PhysicsPlugin {
                 resolve_ground_collision,
                 resolve_block_collision,
                 bound_placement,
+                //srotate_block,
             )
                 .chain()
                 .run_if(in_state(GameState::Game)),
@@ -55,12 +56,19 @@ fn resolve_ground_collision(mut bodies: Query<(Entity, &mut Transform, &mut Velo
 mut commands: Commands,keyboard_input: Res<ButtonInput<KeyCode>>,
 ) {
     for (entity, mut transform, mut velocity) in &mut bodies {
-        let bottom = transform.translation.y - BLOCK_HALF_HEIGHT;
-        let top = transform.translation.y + BLOCK_HALF_HEIGHT;
-        let right = transform.translation.x + BLOCK_HALF_WIDTH;
-        let left = transform.translation.x - BLOCK_HALF_WIDTH;
+        let rotation = transform.rotation.to_euler(EulerRot::XYZ).2;
+            let (half_width, half_height) =
+                if (rotation.abs() - std::f32::consts::FRAC_PI_2).abs() < 0.1 {
+                    (BLOCK_HALF_HEIGHT, BLOCK_HALF_WIDTH)
+                } else {
+                    (BLOCK_HALF_WIDTH, BLOCK_HALF_HEIGHT)
+                };
+        let bottom = transform.translation.y - half_height;
+        let top = transform.translation.y + half_height;
+        let right = transform.translation.x + half_width;
+        let left = transform.translation.x - half_width;
         if right > (LEFT + EDGE_TO_TOWER) && left < (LEFT + EDGE_TO_TOWER + BASE_WIDTH) && bottom < TOWER_BASE_Y {
-            transform.translation.y = TOWER_BASE_Y + BLOCK_HALF_HEIGHT;
+            transform.translation.y = TOWER_BASE_Y + half_height;
             velocity.y = 0.0;
             commands.entity(entity).remove::<JustDropped>();
         }
@@ -101,6 +109,20 @@ mut commands: Commands,keyboard_input: Res<ButtonInput<KeyCode>>,
         }*/
     }
 }
+pub fn rotate_block(
+    mut blocks: Query<&mut Transform, With<BeingPlaced>>,
+    keyboard: Res<ButtonInput<KeyCode>>,
+) {
+    if keyboard.just_pressed(KeyCode::KeyR) {
+        if let Ok(mut transform) = blocks.single_mut() {
+            //println!("Hi");
+            //transform.rotate_local_z(std::f32::consts::FRAC_PI_2);
+            //println!("Before {:?} ", transform.rotation.to_euler(EulerRot::XYZ).2);
+            transform.rotation *= Quat::from_rotation_z(std::f32::consts::FRAC_PI_2);
+            //println!("After {:?} ", transform.rotation.to_euler(EulerRot::XYZ).2);
+        }
+    }
+}
 pub fn resolve_block_collision(
     mut commands: Commands,
     mut active: Query<(Entity, &mut Transform, &mut Velocity), With<JustDropped>>,
@@ -109,34 +131,56 @@ pub fn resolve_block_collision(
     if let Ok((entity, mut active_transform, mut active_velocity)) = active.single_mut() {
 
         for other_transform in &other_blocks {
+            let rotation = active_transform.rotation.to_euler(EulerRot::XYZ).2;
+            let other_rotation = other_transform.rotation.to_euler(EulerRot::XYZ).2;
+            let (active_half_width, active_half_height) =
+                if (rotation.abs() - std::f32::consts::FRAC_PI_2).abs() < 0.1 {
+                    (BLOCK_HALF_HEIGHT, BLOCK_HALF_WIDTH)
+                } else {
+                    (BLOCK_HALF_WIDTH, BLOCK_HALF_HEIGHT)
+                };
+            let (other_half_width, other_half_height) =
+                if (other_rotation.abs() - std::f32::consts::FRAC_PI_2).abs() < 0.1 {
+                    (BLOCK_HALF_HEIGHT, BLOCK_HALF_WIDTH)
+                } else {
+                    (BLOCK_HALF_WIDTH, BLOCK_HALF_HEIGHT)
+                };
+                //println!("width: {:?} ", half_width);
             let active_box = Aabb2d::new(
             active_transform.translation.truncate(),
-            Vec2::new(BLOCK_HALF_WIDTH, BLOCK_HALF_HEIGHT),
+            Vec2::new(active_half_width, active_half_height),
             );
             let other_box = Aabb2d::new(
                 other_transform.translation.truncate(),
-                Vec2::new(BLOCK_HALF_WIDTH, BLOCK_HALF_HEIGHT),
+                Vec2::new(other_half_width, other_half_height),
             );
-            let dx = (active_box.center().x - other_box.center().x).abs();
-            let dy = (active_box.center().y - other_box.center().y).abs();
+            //let dx = (active_box.center().x - other_box.center().x).abs();
+            //let dy = (active_box.center().y - other_box.center().y).abs();
             //println!("Current active block position: {:?}", active_transform.translation);
-            if active_box.intersects(&other_box) {
-                if dy > dx && active_velocity.y < 0.0 {
+            let active_right = active_box.center().x + active_half_width;
+            let active_left = active_box.center().x - active_half_width;
+            let active_bottom = active_box.center().y - active_half_height;
+            let other_top = other_box.center().y + other_half_height;
+            let other_right = other_box.center().x + other_half_width;
+            let other_left = other_box.center().x - other_half_width;
+            let within_horiz = active_left < other_right && active_right > other_left; 
+            if active_box.intersects(&other_box) && within_horiz {
+                if active_velocity.y < 0.0 {
                     active_transform.translation.y =
-                        other_transform.translation.y + BLOCK_HALF_HEIGHT * 2.0;
+                        other_top + active_half_height;
                     active_velocity.y = 0.0;
                     commands.entity(entity).remove::<JustDropped>();
                 }
-                else if dx > dy && active_velocity.x < 0.0 {
+                /*else if active_box.intersects(&other_box) && active_velocity.x < 0.0 && active_bottom < other_top &&  {
                     active_transform.translation.x =
-                        other_transform.translation.x + BLOCK_HALF_WIDTH * 2.0;
+                        other_transform.translation.x + other_half_width * 2.0;
                     active_velocity.x = 0.0;
                 }
-                else if dx > dy && active_velocity.x > 0.0 {
+                else if active_box.intersects(&other_box) && active_velocity.x > 0.0 && active_bottom < other_top {
                     active_transform.translation.x =
-                        other_transform.translation.x - BLOCK_HALF_WIDTH * 2.0;
+                        other_transform.translation.x - other_half_width * 2.0;
                     active_velocity.x = 0.0;
-                } 
+                } */
             }
         }
     }

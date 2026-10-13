@@ -6,6 +6,7 @@ use crate::{GameState, PROGRESS_FRAME, PROGRESS_HEIGHT, PROGRESS_LENGTH, WIN_H, 
 use crate::physics::Velocity;
 use crate::physics::resolve_block_collision;
 use crate::physics::bound_placement;
+use crate::physics::rotate_block;
 
 const GROUND_Y: f32 = -WIN_H / 2.0;
 const LEFT: f32 = -WIN_W / 2.0;
@@ -58,6 +59,7 @@ impl Plugin for GamePlugin {
             .insert_resource(CurrentlyActive::default())
             .add_systems(Update, resolve_block_collision.run_if(in_state(GameState::Game)))
             .add_systems(Update, bound_placement.run_if(in_state(GameState::Game)))
+            .add_systems(Update, rotate_block.run_if(in_state(GameState::Game)))
             .add_message::<Game>();
     }
 }
@@ -123,7 +125,6 @@ fn spawn_block(mut commands: Commands,
                         ..default()
                     },
                     Block,
-                    JustDropped,
                     BeingPlaced,
                     Velocity(Vec2::new(2.,0.)),
         Transform::from_xyz(LEFT + EDGE_TO_TOWER + BASE_WIDTH / 2.0, 275., 1.),
