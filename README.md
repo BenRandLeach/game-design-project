@@ -83,8 +83,9 @@ We will have to check if the IP address is available and if not choose a differe
 
 * 10%: 2 power-ups (2x money and 2x attack speed)
 * 10%: Players can connect to a server and play.
-* 10%  Working implementation of rollback and client side prediction.
-* 20%: Blocks stack, collide, and fall within our physics engine
+* 10%:  Working implementation of rollback and client side prediction.
+* 10%: blocks act according to given attributes ie. weight, shape, and roughness/friction
+* 10%: blocks collide and respond to collisions based on with no glitched movement
 * 10%: 3 block types (Bank Block generates money. Wood block which is cheaper, weighs less, and easier to break. Metal block which is more expensive, weighs more, harder to break).
 * 10%: 2 attack types (Bullet bill like attack (Attacks will ignore its own teams buildings) and slingshot type (Can set attack angle and then it will automatically attack using that angle)).
 * 10%: Earn money from building, destroying blocks, and through bank block.
