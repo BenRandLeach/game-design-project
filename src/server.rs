@@ -1,10 +1,10 @@
 use crate::GameState;
+use crate::client::{SendButton, statusText};
 use bevy::prelude::*;
 use std::{
     io::ErrorKind,
     net::{SocketAddr, UdpSocket},
 };
-
 pub struct ServerPlugin;
 impl Plugin for ServerPlugin {
     fn build(&self, app: &mut App) {
@@ -14,7 +14,10 @@ impl Plugin for ServerPlugin {
                 Update,
                 server_listener.run_if(resource_exists::<ServerSocket>),
             )
-            .add_systems(Update, do_send_button.run_if(in_state(GameState::Game)));
+            .add_systems(
+                Update,
+                do_send_button.run_if(resource_exists::<ServerSocket>),
+            );
     }
 }
 #[derive(Resource)]
@@ -48,7 +51,7 @@ fn setup_server_socket(mut commands: Commands) {
     //commands.insert_resource(ServerSocket(socket));
 }
 
-fn server_listener(server: ResMut<ServerSocket>) {
+fn server_listener(mut server: ResMut<ServerSocket>) {
     let mut buf = [0u8; 1024];
     loop {
         match server.socket.recv_from(&mut buf) {
