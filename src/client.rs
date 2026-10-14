@@ -9,7 +9,8 @@ use std::{
 pub struct ClientPlugin;
 impl Plugin for ClientPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
+        app.add_systems(OnEnter(GameState::Game), network_ui)
+            .add_systems(
                 FixedUpdate,
                 do_send_button.run_if(resource_exists::<ClientSocket>),
             )
@@ -49,7 +50,7 @@ pub fn connect(commands: &mut Commands, text: &str) -> String {
     format!("Ready to talk to {serv_addy}")
 }
 //draws the send button and ststus line
-/*fn network_ui(mut commands: Commands, client: Option<Res<ClientSocket>>) {
+fn network_ui(mut commands: Commands, client: Option<Res<ClientSocket>>) {
     let status_mess = match &client {
         Some(c) => format!("connected to {}", c.serv_addy),
         None => String::from("not connected"),
@@ -85,7 +86,7 @@ pub fn connect(commands: &mut Commands, text: &str) -> String {
     let status = commands.spawn((Text::new(status_mess), statusText)).id();
     commands.entity(send_button).add_child(send_label);
     commands.entity(parent).add_children(&[send_button, status]);
-}*/
+}
 fn do_send_button(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     client: Option<Res<ClientSocket>>,
