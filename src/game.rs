@@ -7,6 +7,7 @@ use crate::physics::Velocity;
 use crate::physics::resolve_block_collision;
 use crate::physics::bound_placement;
 use crate::physics::rotate_block;
+use crate::physics::check_obb_collisions;
 
 const GROUND_Y: f32 = -WIN_H / 2.0;
 const LEFT: f32 = -WIN_W / 2.0;
@@ -55,11 +56,12 @@ impl Plugin for GamePlugin {
             .add_systems(Update, spawn_block.run_if(in_state(GameState::Game)))
             .add_systems(Update, spawn_slingshot.run_if(in_state(GameState::Game)))
             .add_systems(Update, launch_cannonball.run_if(in_state(GameState::Game)))
-            //.add_systems(Update, move_blocks.run_if(in_state(GameState::Game)))
+           // .add_systems(Update, move_blocks.run_if(in_state(GameState::Game)))
             .insert_resource(CurrentlyActive::default())
             .add_systems(Update, resolve_block_collision.run_if(in_state(GameState::Game)))
             .add_systems(Update, bound_placement.run_if(in_state(GameState::Game)))
             .add_systems(Update, rotate_block.run_if(in_state(GameState::Game)))
+            .add_systems(Update, check_obb_collisions.run_if(in_state(GameState::Game)))
             .add_message::<Game>();
     }
 }
@@ -125,6 +127,7 @@ fn spawn_block(mut commands: Commands,
                         ..default()
                     },
                     Block,
+                   // NewEntity,
                     BeingPlaced,
                     Velocity(Vec2::new(2.,0.)),
         Transform::from_xyz(LEFT + EDGE_TO_TOWER + BASE_WIDTH / 2.0, 275., 1.),

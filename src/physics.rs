@@ -20,6 +20,12 @@ const BASE_WIDTH: f32 = 256.0;
 const BLOCK_HALF_HEIGHT: f32 = 24.0;
 const BLOCK_HALF_WIDTH: f32 = 8.0;
 
+pub struct Obb{
+    pub center: Vec2,
+    pub half_dims: Vec2,
+    pub axes: [Vec2; 2],
+}
+
 #[derive(Component, Deref, DerefMut, Default)]
 pub struct Velocity(pub Vec2);
 
@@ -34,13 +40,75 @@ impl Plugin for PhysicsPlugin {
                 resolve_block_collision,
                 bound_placement,
                 //srotate_block,
+                check_obb_collisions,
             )
                 .chain()
                 .run_if(in_state(GameState::Game)),
         );
     }
 }
+pub fn create_obb(
+    transform: &Transform,
+    hwidth: f32,
+    hheight:f32,
+) -> Obb {
+    let angle = transform.rotation.to_euler(EulerRot::XYZ).2;
+    let u = Vec2::new(angle.cos(), angle.sin());
+    let v = Vec2::new(-angle.sin(), angle.cos());
 
+    Obb {
+        center: transform.translation.truncate(),
+        half_dims: Vec2::new(hwidth, hheight),
+        axes: [u, v],
+    }
+}
+pub fn project_obb(
+    obb: &Obb, 
+    axis: Vec2
+) -> (f32, f32) {
+    let cp = obb.center.dot(axis);
+    let ua = obb.axes[0].dot(axis);
+    let va = obb.axes[1].dot(axis);
+    let r = (obb.half_dims.x * (ua).abs()) + (obb.half_dims.y * (va).abs());
+    (cp - r, cp + r)
+}
+
+pub fn interval_overlap(
+    ntv1: (f32, f32),  // where [1] >= [0]
+    ntv2: (f32, f32)
+) -> f32 {
+    ntv1.1.min(ntv2.1) - ntv1.0.max(ntv2.0)
+}
+
+pub fn obb_collision(
+    transform1: &Transform,
+    transform2: &Transform,
+    width: f32,
+    height: f32
+) -> f32 {
+    let obb1 = create_obb(transform1, width, height);
+    let obb2 = create_obb(transform2, width, height);
+
+    let interval_1 = project_obb(&obb1, obb1.axes[0]);
+    let interval_2 = project_obb(&obb2, obb1.axes[0]);
+    let touch1 = interval_overlap(interval_1, interval_2);
+
+    let interval_1 = project_obb(&obb1, obb1.axes[1]);
+    let interval_2 = project_obb(&obb2, obb1.axes[1]);
+    let touch2 = interval_overlap(interval_1, interval_2);
+
+    let interval_1 = project_obb(&obb1, obb2.axes[0]);
+    let interval_2 = project_obb(&obb2, obb2.axes[0]);
+    let touch3 = interval_overlap(interval_1, interval_2);
+
+    let interval_1 = project_obb(&obb1, obb2.axes[1]);
+    let interval_2 = project_obb(&obb2, obb2.axes[1]);
+    let touch4 = interval_overlap(interval_1, interval_2);
+
+    let min1 = touch1.min(touch2);
+    let min2 = touch3.min(touch4);
+    min1.min(min2)
+}
 // Semi-implicit Euler: update velocity first, then move using the new velocity.
 fn integrate_velocity(time: Res<Time>, mut bodies: Query<(&mut Transform, &mut Velocity), (With<JustDropped>, Without<BeingPlaced>),>,) {
     let dt = time.delta_secs();
@@ -182,6 +250,19 @@ pub fn resolve_block_collision(
                     active_velocity.x = 0.0;
                 } */
             }
+        }
+    }
+}
+pub fn check_obb_collisions(
+    mut active: Query<(Entity, &Transform), With<JustDropped>>,
+    other_blocks: Query<&Transform, (With<Block>, Without<JustDropped>)>,
+) {
+    if let Ok((entity, active_transform)) = active.single_mut() {
+        for other_transform in &other_blocks {    
+            if(obb_collision(active_transform, other_transform, BLOCK_HALF_WIDTH, BLOCK_HALF_HEIGHT) > 0.0){
+                println!("Collision Detected");
+            }
+
         }
     }
 }
