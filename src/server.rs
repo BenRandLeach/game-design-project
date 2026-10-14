@@ -11,13 +11,13 @@ impl Plugin for ServerPlugin {
         app.add_systems(Startup, setup_server_socket)
             // app.add_systems(Update, server_listener);
             .add_systems(
-                Update,
+                FixedUpdate,
                 server_listener.run_if(resource_exists::<ServerSocket>),
-            )
-            .add_systems(
-                Update,
-                do_send_button.run_if(resource_exists::<ServerSocket>),
             );
+            //.add_systems(
+              //  FixedUpdate,
+                //do_send_button.run_if(resource_exists::<ServerSocket>),
+            //);
     }
 }
 #[derive(Resource)]
@@ -72,17 +72,41 @@ fn server_listener(mut server: ResMut<ServerSocket>) {
     }
 }
 fn do_send_button(
-    buttons: Query<&Interaction, (Changed<Interaction>, With<SendButton>)>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
     server: Option<Res<ServerSocket>>,
     mut status: Single<&mut Text, With<statusText>>,
 ) {
-    for interaction in &buttons {
-        if *interaction != Interaction::Pressed {
-            continue;
-        }
+    if keyboard_input.just_pressed(KeyCode::KeyB)
+    {
         status.0 = match &server {
             Some(s) => match s.client_addy {
-                Some(addr) => match s.socket.send_to(b"hii", addr) {
+                Some(addr) => match s.socket.send_to(b"B", addr) {
+                    Ok(n) => format!("sent {n} bytes"),
+                    Err(e) => format!("failure to send : {e}"),
+                },
+                None => String::from("no client connected yet"),
+            },
+            None => String::from("not hosting"),
+        };
+    }
+    if keyboard_input.just_pressed(KeyCode::KeyR)
+    {
+        status.0 = match &server {
+            Some(s) => match s.client_addy {
+                Some(addr) => match s.socket.send_to(b"R", addr) {
+                    Ok(n) => format!("sent {n} bytes"),
+                    Err(e) => format!("failure to send : {e}"),
+                },
+                None => String::from("no client connected yet"),
+            },
+            None => String::from("not hosting"),
+        };
+    }
+    if keyboard_input.just_pressed(KeyCode::KeyS)
+    {
+        status.0 = match &server {
+            Some(s) => match s.client_addy {
+                Some(addr) => match s.socket.send_to(b"S", addr) {
                     Ok(n) => format!("sent {n} bytes"),
                     Err(e) => format!("failure to send : {e}"),
                 },
