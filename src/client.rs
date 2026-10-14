@@ -72,20 +72,11 @@ fn network_ui(mut commands: Commands, client: Option<Res<ClientSocket>>) {
         .spawn((
             Button,
             SendButton,
-            Node {
-                width: px(150),
-                height: px(40),
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::Center,
-                ..default()
-            },
             BackgroundColor(DARK_BLUE.into()),
         ))
         .id();
-    let send_label = commands.spawn(Text::new("Send")).id();
+    //let send_label = commands.spawn(Text::new("Send")).id();
     let status = commands.spawn((Text::new(status_mess), statusText)).id();
-    commands.entity(send_button).add_child(send_label);
-    commands.entity(parent).add_children(&[send_button, status]);
 }
 fn do_send_button(
     keyboard_input: Res<ButtonInput<KeyCode>>,
