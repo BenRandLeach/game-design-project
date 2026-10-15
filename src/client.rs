@@ -11,11 +11,11 @@ impl Plugin for ClientPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(GameState::Game), network_ui)
             .add_systems(
-                Update,
+                FixedUpdate,
                 do_send_button.run_if(resource_exists::<ClientSocket>),
             )
             .add_systems(
-                Update,
+                FixedUpdate,
                 client_listener.run_if(resource_exists::<ClientSocket>),
             );
     }
@@ -72,32 +72,41 @@ fn network_ui(mut commands: Commands, client: Option<Res<ClientSocket>>) {
         .spawn((
             Button,
             SendButton,
-            Node {
-                width: px(150),
-                height: px(40),
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::Center,
-                ..default()
-            },
             BackgroundColor(DARK_BLUE.into()),
         ))
         .id();
-    let send_label = commands.spawn(Text::new("Send")).id();
+    //let send_label = commands.spawn(Text::new("Send")).id();
     let status = commands.spawn((Text::new(status_mess), statusText)).id();
-    commands.entity(send_button).add_child(send_label);
-    commands.entity(parent).add_children(&[send_button, status]);
 }
 fn do_send_button(
-    buttons: Query<&Interaction, (Changed<Interaction>, With<SendButton>)>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
     client: Option<Res<ClientSocket>>,
     mut status: Single<&mut Text, With<statusText>>,
 ) {
-    for interaction in &buttons {
-        if *interaction != Interaction::Pressed {
-            continue;
-        }
+    if keyboard_input.just_pressed(KeyCode::KeyB)
+    {
         status.0 = match &client {
-            Some(c) => match c.socket.send_to(b"hii", c.serv_addy) {
+            Some(c) => match c.socket.send_to(b"B", c.serv_addy) {
+                Ok(n) => format!("sent {n} bytes"),
+                Err(e) => format!("failure to send : {e}"),
+            },
+            None => String::from("Not connected, enter IP on the start screen"),
+        };
+    }
+    if keyboard_input.just_pressed(KeyCode::KeyS)
+    {
+        status.0 = match &client {
+            Some(c) => match c.socket.send_to(b"S", c.serv_addy) {
+                Ok(n) => format!("sent {n} bytes"),
+                Err(e) => format!("failure to send : {e}"),
+            },
+            None => String::from("Not connected, enter IP on the start screen"),
+        };
+    }
+    if keyboard_input.just_pressed(KeyCode::KeyR)
+    {
+        status.0 = match &client {
+            Some(c) => match c.socket.send_to(b"R", c.serv_addy) {
                 Ok(n) => format!("sent {n} bytes"),
                 Err(e) => format!("failure to send : {e}"),
             },

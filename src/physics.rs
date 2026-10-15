@@ -2,6 +2,8 @@ use crate::game::NewEntity;
 use crate::game::Block;
 use crate::game::BeingPlaced;
 use crate::game::JustDropped;
+use crate::server::ClientInput;
+use crate::server::stop_input;
 use crate::{GameState, WIN_H, WIN_W};
 use bevy::math::bounding::{Aabb2d, BoundingVolume, IntersectsVolume};
 use bevy::input::mouse::MouseButton::Right;
@@ -146,7 +148,7 @@ mut commands: Commands,keyboard_input: Res<ButtonInput<KeyCode>>,
     }
 }
 pub fn bound_placement(mut bodies: Query<(Entity,&mut Transform, &mut Velocity), With<BeingPlaced>>,
-mut commands: Commands,keyboard_input: Res<ButtonInput<KeyCode>>,
+mut commands: Commands,keyboard_input: Res<ButtonInput<KeyCode>>,client_data: ResMut<ClientInput>,
 ) {
     for (entity, mut transform, mut velocity) in &mut bodies {
         transform.translation.x += velocity.x;
@@ -161,7 +163,7 @@ mut commands: Commands,keyboard_input: Res<ButtonInput<KeyCode>>,
             //transform.translation.x = LEFT + EDGE_TO_TOWER + BLOCK_HALF_WIDTH;
             velocity.x = 2.0;
         }
-        if keyboard_input.just_pressed(KeyCode::KeyS) {
+        if keyboard_input.just_pressed(KeyCode::KeyS) || client_data.input==b'S' {
             velocity.x = 0.0;
             commands.entity(entity).remove::<BeingPlaced>();       
             commands.entity(entity).insert(JustDropped);    
@@ -176,6 +178,8 @@ mut commands: Commands,keyboard_input: Res<ButtonInput<KeyCode>>,
             velocity.x = 0.0;
         }*/
     }
+    if(client_data.input==b'S'){
+    stop_input(client_data);}
 }
 pub fn rotate_block(
     mut blocks: Query<&mut Transform, With<BeingPlaced>>,
