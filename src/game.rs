@@ -2,6 +2,10 @@ use bevy::prelude::*;
 
 const SLIDE_SIZE: Vec2 = Vec2::new(1280.0, 720.0);
 
+use crate::server::ClientInput;
+use crate::server::stop_input;
+use crate::client::ServerInput;
+use crate::client::stop_server_input;
 use crate::{GameState, PROGRESS_FRAME, PROGRESS_HEIGHT, PROGRESS_LENGTH, WIN_H, WIN_W};
 use crate::physics::Velocity;
 use crate::physics::resolve_block_collision;
@@ -122,11 +126,14 @@ fn spawn_block(mut commands: Commands,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     asset_server: Res<AssetServer>, 
     mut currently_active: ResMut<CurrentlyActive>, 
-    being_placed: Query<Entity, With<BeingPlaced>>,) {
+    being_placed: Query<Entity, With<BeingPlaced>>,
+    client_data: ResMut<ClientInput>, server_data:ResMut<ServerInput>,) {
     if being_placed.iter().count() > 0 {
         return;
     }
-    if keyboard_input.just_pressed(KeyCode::KeyB) {
+    if keyboard_input.just_pressed(KeyCode::KeyB) || client_data.input==b'B' || server_data.input==b'B'{
+        stop_input(client_data);
+        stop_server_input(server_data);
     if let Some(active_entity) = currently_active.0 {
             commands.entity(active_entity).remove::<NewEntity>();
         }
@@ -153,8 +160,9 @@ fn spawn_block(mut commands: Commands,
     }
 }
 
-fn spawn_slingshot(mut commands: Commands,keyboard_input: Res<ButtonInput<KeyCode>>,asset_server: Res<AssetServer>, mut currently_active: ResMut<CurrentlyActive>,) {
-    if keyboard_input.just_pressed(KeyCode::KeyN) {
+fn spawn_slingshot(mut commands: Commands,keyboard_input: Res<ButtonInput<KeyCode>>,asset_server: Res<AssetServer>, mut currently_active: ResMut<CurrentlyActive>,client_data: ResMut<ClientInput>,) {
+    if keyboard_input.just_pressed(KeyCode::KeyN) || client_data.input==b'N'{
+        stop_input(client_data);
         let slingshot = commands.spawn((Sprite {image: asset_server.load("slingshot.png"), ..default()}, 
                                 Slingshot,
                                 Block {
@@ -169,8 +177,9 @@ fn spawn_slingshot(mut commands: Commands,keyboard_input: Res<ButtonInput<KeyCod
     }
 }
 
-fn launch_cannonball(mut cannonballs: Query<&mut Velocity, With<Ammo>>, keyboard_input: Res<ButtonInput<KeyCode>>,) {
-    if keyboard_input.just_pressed(KeyCode::KeyM) {
+fn launch_cannonball(mut cannonballs: Query<&mut Velocity, With<Ammo>>, keyboard_input: Res<ButtonInput<KeyCode>>,client_data: ResMut<ClientInput>,) {
+    if keyboard_input.just_pressed(KeyCode::KeyM)|| client_data.input==b'M' {
+        stop_input(client_data);
         let mut accel = Vec2::ZERO;
 
         if keyboard_input.just_pressed(KeyCode::KeyM) {

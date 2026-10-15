@@ -60,6 +60,8 @@ fn main() {
             server::ServerPlugin,
             client::ClientPlugin,
         ))
+        .init_resource::<server::ClientInput>()
+        .init_resource::<client::ServerInput>()
         // Run the game
         .run();
 }

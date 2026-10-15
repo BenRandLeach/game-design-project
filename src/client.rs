@@ -6,16 +6,21 @@ use std::{
     net::{SocketAddr, UdpSocket},
 };
 
+#[derive(Resource,Default)]
+pub struct ServerInput{
+    pub input: u8,
+}
+
 pub struct ClientPlugin;
 impl Plugin for ClientPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(GameState::Game), network_ui)
             .add_systems(
-                Update,
+                FixedUpdate,
                 do_send_button.run_if(resource_exists::<ClientSocket>),
             )
             .add_systems(
-                Update,
+                FixedUpdate,
                 client_listener.run_if(resource_exists::<ClientSocket>),
             );
     }
@@ -31,6 +36,11 @@ pub struct statusText;
 
 #[derive(Component)]
 pub struct SendButton;
+
+pub fn stop_server_input(mut input: ResMut<ServerInput>)
+{
+    input.input=b'0';
+}
 
 pub fn connect(commands: &mut Commands, text: &str) -> String {
     let full = if text.contains(':') {
@@ -72,32 +82,41 @@ fn network_ui(mut commands: Commands, client: Option<Res<ClientSocket>>) {
         .spawn((
             Button,
             SendButton,
-            Node {
-                width: px(150),
-                height: px(40),
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::Center,
-                ..default()
-            },
             BackgroundColor(DARK_BLUE.into()),
         ))
         .id();
-    let send_label = commands.spawn(Text::new("Send")).id();
+    //let send_label = commands.spawn(Text::new("Send")).id();
     let status = commands.spawn((Text::new(status_mess), statusText)).id();
-    commands.entity(send_button).add_child(send_label);
-    commands.entity(parent).add_children(&[send_button, status]);
 }
 fn do_send_button(
-    buttons: Query<&Interaction, (Changed<Interaction>, With<SendButton>)>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
     client: Option<Res<ClientSocket>>,
     mut status: Single<&mut Text, With<statusText>>,
 ) {
-    for interaction in &buttons {
-        if *interaction != Interaction::Pressed {
-            continue;
-        }
+    if keyboard_input.just_pressed(KeyCode::KeyB)
+    {
         status.0 = match &client {
-            Some(c) => match c.socket.send_to(b"hii", c.serv_addy) {
+            Some(c) => match c.socket.send_to(b"B", c.serv_addy) {
+                Ok(n) => format!("sent {n} bytes"),
+                Err(e) => format!("failure to send : {e}"),
+            },
+            None => String::from("Not connected, enter IP on the start screen"),
+        };
+    }
+    if keyboard_input.just_pressed(KeyCode::KeyS)
+    {
+        status.0 = match &client {
+            Some(c) => match c.socket.send_to(b"S", c.serv_addy) {
+                Ok(n) => format!("sent {n} bytes"),
+                Err(e) => format!("failure to send : {e}"),
+            },
+            None => String::from("Not connected, enter IP on the start screen"),
+        };
+    }
+    if keyboard_input.just_pressed(KeyCode::KeyR)
+    {
+        status.0 = match &client {
+            Some(c) => match c.socket.send_to(b"R", c.serv_addy) {
                 Ok(n) => format!("sent {n} bytes"),
                 Err(e) => format!("failure to send : {e}"),
             },
@@ -108,13 +127,14 @@ fn do_send_button(
 
 fn client_listener(
     mut client: ResMut<ClientSocket>,
-    mut status: Query<&mut Text, With<statusText>>,
+    mut status: Query<&mut Text, With<statusText>>,mut input: ResMut<ServerInput>
 ) {
     let mut buf = [0u8; 1024];
     loop {
         match client.socket.recv_from(&mut buf) {
             Ok((n, from)) => {
                 let reply = String::from_utf8_lossy(&buf[..n]);
+                input.input=buf[0];
                 println!("client got {n} bytes from {from}: {:?}", &buf[..n]);
                 for mut t in &mut status {
                     t.0 = format!("got a reply form {from}: {reply}");
