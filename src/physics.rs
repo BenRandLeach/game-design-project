@@ -254,15 +254,20 @@ pub fn resolve_block_collision(
     }
 }
 pub fn check_obb_collisions(
-    mut active: Query<(Entity, &Transform), With<JustDropped>>,
-    other_blocks: Query<&Transform, (With<Block>, Without<JustDropped>)>,
+    blocks: Query<(Entity, &Transform), With<Block>>,
 ) {
-    if let Ok((entity, active_transform)) = active.single_mut() {
-        for other_transform in &other_blocks {    
-            if(obb_collision(active_transform, other_transform, BLOCK_HALF_WIDTH, BLOCK_HALF_HEIGHT) > 0.0){
-                println!("Collision Detected");
-            }
+    let mut combinations = blocks.iter_combinations();
+    
+    while let Some([(entity1, transform1), (entity2, transform2)]) = combinations.fetch_next() {
+        let penetration = obb_collision(
+            transform1,
+            transform2,
+            BLOCK_HALF_WIDTH,
+            BLOCK_HALF_HEIGHT,
+        );
 
+        if penetration > 0.0 {
+            println!("Collision detected: {}", penetration);
         }
-    }
+    }   
 }

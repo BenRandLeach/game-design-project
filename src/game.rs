@@ -16,8 +16,17 @@ const TOWER_BASE_Y: f32 = (-WIN_H / 2.0) + 20.0;
 const EDGE_TO_TOWER: f32 = 48.0; // 48px between base and border, 8px is half the width of a block
 const BASE_WIDTH: f32 = 256.0;
 
+const BLOCK_WIDTH: f32 = 16.0;
+const BLOCK_HEIGHT: f32 = 48.0;
+
 #[derive(Component)]
-pub struct Block;
+pub struct Block {
+    pub mass: f32,
+    pub angular_velocity: f32,
+    pub inertia: f32,
+    //pub restitution: f32,
+    //pub friction: f32,
+}
 
 #[derive(Component)]
 pub struct Slingshot;
@@ -121,12 +130,20 @@ fn spawn_block(mut commands: Commands,
     if let Some(active_entity) = currently_active.0 {
             commands.entity(active_entity).remove::<NewEntity>();
         }
+    let mass = 1.0;
+    let inertia = mass * ((BLOCK_WIDTH * BLOCK_WIDTH) + (BLOCK_HEIGHT * BLOCK_HEIGHT)) / 12.0;
+
+
     let entity = commands.spawn((
         Sprite {
                         image: asset_server.load("WoodBlock.png"),
                         ..default()
                     },
-                    Block,
+                    Block {
+                        mass,
+                        angular_velocity: 0.0,
+                        inertia,
+                    },
                    // NewEntity,
                     BeingPlaced,
                     Velocity(Vec2::new(2.,0.)),
@@ -140,7 +157,11 @@ fn spawn_slingshot(mut commands: Commands,keyboard_input: Res<ButtonInput<KeyCod
     if keyboard_input.just_pressed(KeyCode::KeyN) {
         let slingshot = commands.spawn((Sprite {image: asset_server.load("slingshot.png"), ..default()}, 
                                 Slingshot,
-                                Block,
+                                Block {
+                                    mass: 1.0,
+                                    angular_velocity: 0.0,
+                                    inertia: 0.0,
+                                },
                                 Velocity::default(), 
                                 NewEntity,
                                 Transform::from_xyz(0., 0., 2.),)).id();
