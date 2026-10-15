@@ -58,6 +58,11 @@ fn setup_server_socket(mut commands: Commands) {
     //commands.insert_resource(ServerSocket(socket));
 }
 
+pub fn stop_input(mut input: ResMut<ClientInput>)
+{
+    input.input=b'0';
+}
+
 pub fn client_Input(input:&[u8])->&[u8]
 {
     return input;
