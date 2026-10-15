@@ -6,6 +6,13 @@ use std::{
     net::{SocketAddr, UdpSocket},
 };
 pub struct ServerPlugin;
+
+#[derive(Resource,Default)]
+pub struct ClientInput{
+    pub input: u8,
+}
+
+
 impl Plugin for ServerPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, setup_server_socket)
@@ -51,14 +58,21 @@ fn setup_server_socket(mut commands: Commands) {
     //commands.insert_resource(ServerSocket(socket));
 }
 
-fn server_listener(mut server: ResMut<ServerSocket>) {
+pub fn client_Input(input:&[u8])->&[u8]
+{
+    return input;
+}
+
+pub fn server_listener(mut server: ResMut<ServerSocket>,mut input: ResMut<ClientInput>){
     let mut buf = [0u8; 1024];
     loop {
         match server.socket.recv_from(&mut buf) {
             Ok((n, from)) => {
                 server.client_addy = Some(from);
-                println!("server got {n} bytes from {from}: {:?}", &buf[..n]);
+                //println!("server got {n} bytes from {from}: {:?}", &buf[..n]);
                 // echo back to whoever sent it
+                client_Input(&buf[..n]);
+                input.input=buf[0];
                 if let Err(e) = server.socket.send_to(&buf[..n], from) {
                     println!("server couldnt reply: {e}");
                 }
