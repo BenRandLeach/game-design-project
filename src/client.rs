@@ -6,6 +6,11 @@ use std::{
     net::{SocketAddr, UdpSocket},
 };
 
+#[derive(Resource,Default)]
+pub struct ServerInput{
+    pub input: u8,
+}
+
 pub struct ClientPlugin;
 impl Plugin for ClientPlugin {
     fn build(&self, app: &mut App) {
@@ -31,6 +36,11 @@ pub struct statusText;
 
 #[derive(Component)]
 pub struct SendButton;
+
+pub fn stop_server_input(mut input: ResMut<ServerInput>)
+{
+    input.input=b'0';
+}
 
 pub fn connect(commands: &mut Commands, text: &str) -> String {
     let full = if text.contains(':') {
@@ -117,13 +127,14 @@ fn do_send_button(
 
 fn client_listener(
     mut client: ResMut<ClientSocket>,
-    mut status: Query<&mut Text, With<statusText>>,
+    mut status: Query<&mut Text, With<statusText>>,mut input: ResMut<ServerInput>
 ) {
     let mut buf = [0u8; 1024];
     loop {
         match client.socket.recv_from(&mut buf) {
             Ok((n, from)) => {
                 let reply = String::from_utf8_lossy(&buf[..n]);
+                input.input=buf[0];
                 println!("client got {n} bytes from {from}: {:?}", &buf[..n]);
                 for mut t in &mut status {
                     t.0 = format!("got a reply form {from}: {reply}");

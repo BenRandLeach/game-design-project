@@ -20,11 +20,11 @@ impl Plugin for ServerPlugin {
             .add_systems(
                 FixedUpdate,
                 server_listener.run_if(resource_exists::<ServerSocket>),
+            )
+            .add_systems(
+              FixedUpdate,
+                do_send_button.run_if(resource_exists::<ServerSocket>),
             );
-            //.add_systems(
-              //  FixedUpdate,
-                //do_send_button.run_if(resource_exists::<ServerSocket>),
-            //);
     }
 }
 #[derive(Resource)]
@@ -78,9 +78,9 @@ pub fn server_listener(mut server: ResMut<ServerSocket>,mut input: ResMut<Client
                 // echo back to whoever sent it
                 client_Input(&buf[..n]);
                 input.input=buf[0];
-                if let Err(e) = server.socket.send_to(&buf[..n], from) {
-                    println!("server couldnt reply: {e}");
-                }
+                //if let Err(e) = server.socket.send_to(&buf[..n], from) {
+                  //  println!("server couldnt reply: {e}");
+                //}
             }
             Err(e) if e.kind() == ErrorKind::WouldBlock => break, //empty
             Err(e) => {
@@ -93,10 +93,11 @@ pub fn server_listener(mut server: ResMut<ServerSocket>,mut input: ResMut<Client
 fn do_send_button(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     server: Option<Res<ServerSocket>>,
-    mut status: Single<&mut Text, With<statusText>>,
+    mut status: Single<&mut Text, With<statusText>>,mut input: ResMut<ClientInput>,
 ) {
     if keyboard_input.just_pressed(KeyCode::KeyB)
     {
+        input.input=b'B';
         status.0 = match &server {
             Some(s) => match s.client_addy {
                 Some(addr) => match s.socket.send_to(b"B", addr) {
@@ -110,6 +111,7 @@ fn do_send_button(
     }
     if keyboard_input.just_pressed(KeyCode::KeyR)
     {
+        input.input=b'R';
         status.0 = match &server {
             Some(s) => match s.client_addy {
                 Some(addr) => match s.socket.send_to(b"R", addr) {
@@ -123,6 +125,7 @@ fn do_send_button(
     }
     if keyboard_input.just_pressed(KeyCode::KeyS)
     {
+        input.input=b'S';
         status.0 = match &server {
             Some(s) => match s.client_addy {
                 Some(addr) => match s.socket.send_to(b"S", addr) {
