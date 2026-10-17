@@ -8,10 +8,6 @@ use crate::client::ServerInput;
 use crate::client::stop_server_input;
 use crate::{GameState, PROGRESS_FRAME, PROGRESS_HEIGHT, PROGRESS_LENGTH, WIN_H, WIN_W};
 use crate::physics::Velocity;
-use crate::physics::resolve_block_collision;
-use crate::physics::bound_placement;
-use crate::physics::rotate_block;
-use crate::physics::check_obb_collisions;
 
 const GROUND_Y: f32 = -WIN_H / 2.0;
 const LEFT: f32 = -WIN_W / 2.0;
@@ -71,10 +67,6 @@ impl Plugin for GamePlugin {
             .add_systems(Update, launch_cannonball.run_if(in_state(GameState::Game)))
            // .add_systems(Update, move_blocks.run_if(in_state(GameState::Game)))
             .insert_resource(CurrentlyActive::default())
-            .add_systems(Update, resolve_block_collision.run_if(in_state(GameState::Game)))
-            .add_systems(Update, bound_placement.run_if(in_state(GameState::Game)))
-            .add_systems(Update, rotate_block.run_if(in_state(GameState::Game)))
-            .add_systems(Update, check_obb_collisions.run_if(in_state(GameState::Game)))
             .add_message::<Game>();
     }
 }

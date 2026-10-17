@@ -43,7 +43,7 @@ impl Plugin for PhysicsPlugin {
                 resolve_ground_collision,
                 resolve_block_collision,
                 bound_placement,
-                //srotate_block,
+                rotate_block,
                 check_obb_collisions,
             )
                 .chain()
