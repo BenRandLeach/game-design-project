@@ -2,6 +2,7 @@ use crate::game::NewEntity;
 use crate::game::Block;
 use crate::game::BeingPlaced;
 use crate::game::JustDropped;
+use crate::game::CurrentlyActive;
 use crate::server::ClientInput;
 use crate::server::stop_input;
 use crate::client::ServerInput;
@@ -42,6 +43,7 @@ impl Plugin for PhysicsPlugin {
         app.add_systems(
             FixedUpdate,
             (
+                fast_fall,
                 integrate_velocity,
                 check_obb_collisions,
                 resolve_ground_collision,
@@ -173,15 +175,30 @@ mut commands: Commands,keyboard_input: Res<ButtonInput<KeyCode>>,client_data: Re
         let right = transform.translation.x + BLOCK_HALF_WIDTH;
         let left = transform.translation.x - BLOCK_HALF_WIDTH;
         //if(left player)
-        if right > (LEFT + EDGE_TO_TOWER + BASE_WIDTH) {
-            //transform.translation.x = LEFT + EDGE_TO_TOWER - BLOCK_HALF_WIDTH + BASE_WIDTH;
-            velocity.x = -2.0;
+        // if right > (LEFT + EDGE_TO_TOWER + BASE_WIDTH) {
+        //     //transform.translation.x = LEFT + EDGE_TO_TOWER - BLOCK_HALF_WIDTH + BASE_WIDTH;
+        //     velocity.x = -2.0;
+        // }
+        // else if left < (LEFT + EDGE_TO_TOWER) {
+        //     //transform.translation.x = LEFT + EDGE_TO_TOWER + BLOCK_HALF_WIDTH;
+        //     velocity.x = 2.0;
+        // }
+        const MOVE_SPEED: f32 = 5.0;
+        let mut dir = 0.;
+        if keyboard_input.pressed(KeyCode::KeyA) || client_data.input==b'A'|| server_data.input==b'A' {
+            dir += -1.;
         }
-        else if left < (LEFT + EDGE_TO_TOWER) {
-            //transform.translation.x = LEFT + EDGE_TO_TOWER + BLOCK_HALF_WIDTH;
-            velocity.x = 2.0;
+
+        if keyboard_input.pressed(KeyCode::KeyD) || client_data.input==b'D'|| server_data.input==b'D' {
+            dir += 1.;
         }
-        if keyboard_input.just_pressed(KeyCode::KeyS) || client_data.input==b'S'|| server_data.input==b'S' {
+        transform.translation.x += dir * MOVE_SPEED;
+
+        let min_x = LEFT + EDGE_TO_TOWER + (BLOCK_HALF_WIDTH * 2.);
+        let max_x = LEFT + EDGE_TO_TOWER + BASE_WIDTH - (BLOCK_HALF_WIDTH * 2.) ;
+        transform.translation.x = transform.translation.x.clamp(min_x, max_x);
+
+        if keyboard_input.pressed(KeyCode::KeyS) || client_data.input==b'S'|| server_data.input==b'S' {
             velocity.x = 0.0;
             commands.entity(entity).remove::<BeingPlaced>();       
             commands.entity(entity).insert(JustDropped);    
@@ -219,6 +236,28 @@ pub fn rotate_block(
         }
     }
 }
+pub fn fast_fall(
+    time: Res<Time>,
+    active: Res<CurrentlyActive>,
+    mut blocks: Query<&mut Velocity, With<JustDropped>>,
+    keyboard: Res<ButtonInput<KeyCode>>, client_data: ResMut<ClientInput>, server_data:ResMut<ServerInput>,
+) {
+    const ACCEL_INCREASE: f32 = 2000.;
+    const MAX_FALL_SPEED: f32 = 10000.;
+
+    if !(keyboard.pressed(KeyCode::KeyS) || client_data.input==b'S' || server_data.input==b'S') {
+        return;
+    }
+    else {
+        let dt = time.delta_secs();
+
+        let Some(entity) = active.0 else { return };
+        if let Ok(mut velocity) = blocks.get_mut(entity) { //for mut velocity in &mut blocks {
+            velocity.y = (velocity.y - dt * ACCEL_INCREASE).max(-MAX_FALL_SPEED);
+        }
+    }
+}
+
 pub fn resolve_block_collision(
     mut commands: Commands,
     mut active: Query<(Entity, &mut Transform, &mut Velocity), With<JustDropped>>,
