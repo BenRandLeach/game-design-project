@@ -9,15 +9,12 @@ use crate::server::ClientInput;
 use crate::server::stop_input;
 use crate::client::ServerInput;
 use crate::client::stop_server_input;
-use crate::{GameState, PROGRESS_FRAME, PROGRESS_HEIGHT, PROGRESS_LENGTH, WIN_H, WIN_W};
+use crate::{GameState, PROGRESS_FRAME, PROGRESS_HEIGHT, PROGRESS_LENGTH, WIN_H};
 use crate::physics::Velocity;
+use crate::side::LocalSide;
 
 const GROUND_Y: f32 = -WIN_H / 2.0;
-const LEFT: f32 = -WIN_W / 2.0;
-const RIGHT: f32 = WIN_W / 2.0;
 const TOWER_BASE_Y: f32 = (-WIN_H / 2.0) + 20.0;
-const EDGE_TO_TOWER: f32 = 48.0; // 48px between base and border, 8px is half the width of a block
-const BASE_WIDTH: f32 = 256.0;
 
 const BLOCK_WIDTH: f32 = 16.0;
 const BLOCK_HEIGHT: f32 = 48.0;
@@ -127,6 +124,7 @@ fn spawn_block(mut commands: Commands,
     asset_server: Res<AssetServer>, 
     mut currently_active: ResMut<CurrentlyActive>, 
     being_placed: Query<Entity, With<BeingPlaced>>,
+    local_side: Res<LocalSide>,
     client_data: ResMut<ClientInput>, server_data:ResMut<ServerInput>,) {
     if being_placed.iter().count() > 0 {
         return;
@@ -154,7 +152,8 @@ fn spawn_block(mut commands: Commands,
                    // NewEntity,
                     BeingPlaced,
                     Velocity(Vec2::new(2.,0.)),
-        Transform::from_xyz(LEFT + EDGE_TO_TOWER + BASE_WIDTH / 2.0, 275., 1.),
+                    local_side.0,
+        Transform::from_xyz(local_side.base_center(), 275., 1.),
 )).id();
     currently_active.0 = Some(entity);
     }

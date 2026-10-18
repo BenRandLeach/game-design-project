@@ -6,6 +6,7 @@ mod game;
 mod physics;
 mod server;
 mod client;
+mod side;
 
 const TITLE: &str = "Tower Balance";
 const WIN_W: f32 = 1280.;
@@ -59,6 +60,7 @@ fn main() {
             physics::PhysicsPlugin,
             server::ServerPlugin,
             client::ClientPlugin,
+            side::SidePlugin,
         ))
         .init_resource::<server::ClientInput>()
         .init_resource::<client::ServerInput>()

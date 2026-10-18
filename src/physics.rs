@@ -7,7 +7,8 @@ use crate::server::ClientInput;
 use crate::server::stop_input;
 use crate::client::ServerInput;
 use crate::client::stop_server_input;
-use crate::{GameState, WIN_H, WIN_W};
+use crate::side::Side;
+use crate::{GameState, WIN_H};
 use bevy::math::bounding::{Aabb2d, BoundingVolume, IntersectsVolume};
 use bevy::input::mouse::MouseButton::Right;
 use bevy::prelude::*;
@@ -16,11 +17,7 @@ use bevy::time::Fixed;
 const GRAVITY: f32 = -980.0;
 const RESTITUTION: f32 = 0.2;
 const GROUND_Y: f32 = -WIN_H / 2.0;
-const LEFT: f32 = -WIN_W / 2.0;
-const RIGHT: f32 = WIN_W / 2.0;
 const TOWER_BASE_Y: f32 = (-WIN_H / 2.0) + 20.0;
-const EDGE_TO_TOWER: f32 = 48.0; // 48px between base and border, 8px is half the width of a block
-const BASE_WIDTH: f32 = 256.0;
 
 // TODO(physics): hardcoded for WoodBlock.png (48px); replace with a
 // per-entity half-extent once AABB/SAT collision lands.
@@ -156,10 +153,14 @@ mut commands: Commands,keyboard_input: Res<ButtonInput<KeyCode>>,
         let top = transform.translation.y + half_height;
         let right = transform.translation.x + half_width;
         let left = transform.translation.x - half_width;
-        if right > (LEFT + EDGE_TO_TOWER) && left < (LEFT + EDGE_TO_TOWER + BASE_WIDTH) && bottom < TOWER_BASE_Y {
-            transform.translation.y = TOWER_BASE_Y + half_height;
-            velocity.y = 0.0;
-            commands.entity(entity).remove::<JustDropped>();
+        // Both towers physically exist, so land on whichever base is underneath
+        for base in [Side::Left, Side::Right] {
+            if right > base.base_left() && left < base.base_right() && bottom < TOWER_BASE_Y {
+                transform.translation.y = TOWER_BASE_Y + half_height;
+                velocity.y = 0.0;
+                commands.entity(entity).remove::<JustDropped>();
+                break;
+            }
         }
         /*if top < GROUND_Y {
             REMOVE BLOCK ENTITY
@@ -167,12 +168,11 @@ mut commands: Commands,keyboard_input: Res<ButtonInput<KeyCode>>,
     }
 }
 // Bounds placement horizontally, and moves block while choosing placement
-pub fn bound_placement(mut bodies: Query<(Entity,&mut Transform, &mut Velocity), With<BeingPlaced>>,
+pub fn bound_placement(mut bodies: Query<(Entity,&mut Transform, &mut Velocity, &Side), With<BeingPlaced>>,
 mut commands: Commands,keyboard_input: Res<ButtonInput<KeyCode>>,client_data: ResMut<ClientInput>,server_data:ResMut<ServerInput>,
 ) {
-    for (entity, mut transform, mut velocity) in &mut bodies {
+    for (entity, mut transform, mut velocity, side) in &mut bodies {
         transform.translation.x += velocity.x;
-        //if(left player)
         const MOVE_SPEED: f32 = 5.0;
         let mut dir = 0.;
         if keyboard_input.pressed(KeyCode::KeyA) || client_data.input==b'A'|| server_data.input==b'A' {
@@ -184,8 +184,9 @@ mut commands: Commands,keyboard_input: Res<ButtonInput<KeyCode>>,client_data: Re
         }
         transform.translation.x += dir * MOVE_SPEED;
 
-        let min_x = LEFT + EDGE_TO_TOWER + (BLOCK_HALF_WIDTH * 2.);
-        let max_x = LEFT + EDGE_TO_TOWER + BASE_WIDTH - (BLOCK_HALF_WIDTH * 2.) ;
+        // Bounds come from the block's own side, not the local player's
+        let min_x = side.base_left() + (BLOCK_HALF_WIDTH * 2.);
+        let max_x = side.base_right() - (BLOCK_HALF_WIDTH * 2.);
         transform.translation.x = transform.translation.x.clamp(min_x, max_x);
 
         // Bounce off the edges so auto-move keeps going back and forth
@@ -200,15 +201,6 @@ mut commands: Commands,keyboard_input: Res<ButtonInput<KeyCode>>,client_data: Re
             commands.entity(entity).remove::<BeingPlaced>();       
             commands.entity(entity).insert(JustDropped);    
         }
-        /*if(right player)
-        if(left < (RIGHT - EDGE_TO_TOWER - BASE_WIDTH)) {
-            transform.translation.x = LEFT + EDGE_TO_TOWER + BASE_WIDTH;
-            velocity.x = 0.0;
-        }
-        else if(right > (RIGHT - EDGE_TO_TOWER)) {
-            transform.translation.x = RIGHT - EDGE_TO_TOWER - BLOCK_HALF_WIDTH;
-            velocity.x = 0.0;
-        }*/
     }
     if(client_data.input==b'S'){
     stop_input(client_data);}
