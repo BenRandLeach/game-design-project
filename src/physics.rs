@@ -172,17 +172,7 @@ mut commands: Commands,keyboard_input: Res<ButtonInput<KeyCode>>,client_data: Re
 ) {
     for (entity, mut transform, mut velocity) in &mut bodies {
         transform.translation.x += velocity.x;
-        let right = transform.translation.x + BLOCK_HALF_WIDTH;
-        let left = transform.translation.x - BLOCK_HALF_WIDTH;
         //if(left player)
-        // if right > (LEFT + EDGE_TO_TOWER + BASE_WIDTH) {
-        //     //transform.translation.x = LEFT + EDGE_TO_TOWER - BLOCK_HALF_WIDTH + BASE_WIDTH;
-        //     velocity.x = -2.0;
-        // }
-        // else if left < (LEFT + EDGE_TO_TOWER) {
-        //     //transform.translation.x = LEFT + EDGE_TO_TOWER + BLOCK_HALF_WIDTH;
-        //     velocity.x = 2.0;
-        // }
         const MOVE_SPEED: f32 = 5.0;
         let mut dir = 0.;
         if keyboard_input.pressed(KeyCode::KeyA) || client_data.input==b'A'|| server_data.input==b'A' {
@@ -197,6 +187,13 @@ mut commands: Commands,keyboard_input: Res<ButtonInput<KeyCode>>,client_data: Re
         let min_x = LEFT + EDGE_TO_TOWER + (BLOCK_HALF_WIDTH * 2.);
         let max_x = LEFT + EDGE_TO_TOWER + BASE_WIDTH - (BLOCK_HALF_WIDTH * 2.) ;
         transform.translation.x = transform.translation.x.clamp(min_x, max_x);
+
+        // Bounce off the edges so auto-move keeps going back and forth
+        if transform.translation.x >= max_x {
+            velocity.x = -velocity.x.abs();
+        } else if transform.translation.x <= min_x {
+            velocity.x = velocity.x.abs();
+        }
 
         if keyboard_input.pressed(KeyCode::KeyS) || client_data.input==b'S'|| server_data.input==b'S' {
             velocity.x = 0.0;
