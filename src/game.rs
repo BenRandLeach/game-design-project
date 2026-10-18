@@ -1,5 +1,8 @@
 use bevy::prelude::*;
-
+/* Artificial lag imports
+use std::thread;
+use std::time::Duration;
+*/
 const SLIDE_SIZE: Vec2 = Vec2::new(1280.0, 720.0);
 
 use crate::server::ClientInput;
@@ -24,7 +27,6 @@ pub struct Block {
     pub mass: f32,
     pub angular_velocity: f32,
     pub inertia: f32,
-    //pub restitution: f32,
     //pub friction: f32,
 }
 
@@ -65,11 +67,17 @@ impl Plugin for GamePlugin {
             .add_systems(Update, spawn_block.run_if(in_state(GameState::Game)))
             .add_systems(Update, spawn_slingshot.run_if(in_state(GameState::Game)))
             .add_systems(Update, launch_cannonball.run_if(in_state(GameState::Game)))
-           // .add_systems(Update, move_blocks.run_if(in_state(GameState::Game)))
+            //.add_systems(Update, move_blocks.run_if(in_state(GameState::Game)))
+            //.add_systems(Update, simulate_lag.run_if(in_state(GameState::Game)))
             .insert_resource(CurrentlyActive::default())
             .add_message::<Game>();
     }
 }
+/* For testing 
+fn simulate_lag() {
+    thread::sleep(Duration::from_millis(200));
+}
+*/
 
 fn game_mess_listener(
     mut game_mess: MessageReader<Game>,

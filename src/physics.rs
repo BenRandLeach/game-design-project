@@ -10,8 +10,10 @@ use crate::{GameState, WIN_H, WIN_W};
 use bevy::math::bounding::{Aabb2d, BoundingVolume, IntersectsVolume};
 use bevy::input::mouse::MouseButton::Right;
 use bevy::prelude::*;
+use bevy::time::Fixed;
 
 const GRAVITY: f32 = -980.0;
+const RESTITUTION: f32 = 0.2;
 const GROUND_Y: f32 = -WIN_H / 2.0;
 const LEFT: f32 = -WIN_W / 2.0;
 const RIGHT: f32 = WIN_W / 2.0;
@@ -36,15 +38,17 @@ pub struct Velocity(pub Vec2);
 pub struct PhysicsPlugin;
 impl Plugin for PhysicsPlugin {
     fn build(&self, app: &mut App) {
+        app.insert_resource(Time::<Fixed>::from_hz(60.0));
         app.add_systems(
-            Update,
+            FixedUpdate,
             (
                 integrate_velocity,
+                check_obb_collisions,
                 resolve_ground_collision,
-                resolve_block_collision,
+                //resolve_block_collision,
                 bound_placement,
                 rotate_block,
-                check_obb_collisions,
+                //check_obb_collisions,
             )
                 .chain()
                 .run_if(in_state(GameState::Game)),
@@ -89,29 +93,40 @@ pub fn obb_collision(
     transform2: &Transform,
     width: f32,
     height: f32
-) -> f32 {
+) -> (f32, Vec2) {
+    
     let obb1 = create_obb(transform1, width, height);
     let obb2 = create_obb(transform2, width, height);
 
-    let interval_1 = project_obb(&obb1, obb1.axes[0]);
-    let interval_2 = project_obb(&obb2, obb1.axes[0]);
-    let touch1 = interval_overlap(interval_1, interval_2);
+    let mut min_touch = f32::MAX;
+    let mut min_axis = obb1.axes[0]; //THIS WILL BE OUR NORMAL!!!!!!
+                                     //To be precise it is our axis of minimum penetration, but serves as our normal
+    let axes = [
+        obb1.axes[0], 
+        obb1.axes[1], 
+        obb2.axes[0], 
+        obb2.axes[1],
+    ]; 
 
-    let interval_1 = project_obb(&obb1, obb1.axes[1]);
-    let interval_2 = project_obb(&obb2, obb1.axes[1]);
-    let touch2 = interval_overlap(interval_1, interval_2);
+    for axis in axes{
+        let interval_1 = project_obb(&obb1, axis);
+        let interval_2 = project_obb(&obb2, axis);
+        let touch = interval_overlap(interval_1, interval_2);
+        if(touch <= 0.0){
+            return (touch, axis);
+        }
+        if(touch < min_touch) {
+            min_touch = touch;
+            min_axis = axis;
+        }  
+    }
 
-    let interval_1 = project_obb(&obb1, obb2.axes[0]);
-    let interval_2 = project_obb(&obb2, obb2.axes[0]);
-    let touch3 = interval_overlap(interval_1, interval_2);
+    let direction = obb2.center - obb1.center;
+    if direction.dot(min_axis) < 0.0 {
+        min_axis = -min_axis;
+    }
 
-    let interval_1 = project_obb(&obb1, obb2.axes[1]);
-    let interval_2 = project_obb(&obb2, obb2.axes[1]);
-    let touch4 = interval_overlap(interval_1, interval_2);
-
-    let min1 = touch1.min(touch2);
-    let min2 = touch3.min(touch4);
-    min1.min(min2)
+    (min_touch, min_axis)
 }
 // Semi-implicit Euler: update velocity first, then move using the new velocity.
 fn integrate_velocity(time: Res<Time>, mut bodies: Query<(&mut Transform, &mut Velocity), (With<JustDropped>, Without<BeingPlaced>),>,) {
@@ -149,6 +164,7 @@ mut commands: Commands,keyboard_input: Res<ButtonInput<KeyCode>>,
         }*/
     }
 }
+// Bounds placement horizontally, and moves block while choosing placement
 pub fn bound_placement(mut bodies: Query<(Entity,&mut Transform, &mut Velocity), With<BeingPlaced>>,
 mut commands: Commands,keyboard_input: Res<ButtonInput<KeyCode>>,client_data: ResMut<ClientInput>,server_data:ResMut<ServerInput>,
 ) {
@@ -266,20 +282,32 @@ pub fn resolve_block_collision(
     }
 }
 pub fn check_obb_collisions(
-    blocks: Query<(Entity, &Transform), With<Block>>,
+    mut blocks: Query<(Entity, &Block, &mut Transform, &mut Velocity),>,
 ) {
-    let mut combinations = blocks.iter_combinations();
+    let mut combinations = blocks.iter_combinations_mut();
     
-    while let Some([(entity1, transform1), (entity2, transform2)]) = combinations.fetch_next() {
-        let penetration = obb_collision(
-            transform1,
-            transform2,
+    while let Some([(entity1, block1, mut transform1, mut velocity1),
+                    (entity2, block2, mut transform2, mut velocity2)]) = combinations.fetch_next() {
+        let (penetration, normal) = obb_collision(
+            &transform1,
+            &transform2,
             BLOCK_HALF_WIDTH,
             BLOCK_HALF_HEIGHT,
         );
 
         if penetration > 0.0 {
-            println!("Collision detected: {}", penetration);
+            let relative_velocity = velocity2.0 - velocity1.0;
+            let velocity_along_normal = relative_velocity.dot(normal);
+            let impulse_num = -1.0 * ((1.0 + RESTITUTION)* velocity_along_normal);
+            let impulse_den = (1.0/block1.mass) + (1.0/block2.mass);
+            let impulse = impulse_num/impulse_den;
+            let impulse_vec = impulse * normal;
+            if(velocity_along_normal < 0.0){
+                velocity1.0 -= impulse_vec / block1.mass;
+                velocity2.0 += impulse_vec / block2.mass; 
+            }
+            transform1.translation -= (normal * penetration / 2.0).extend(0.0);
+            transform2.translation += (normal * penetration / 2.0).extend(0.0);
         }
     }   
 }
