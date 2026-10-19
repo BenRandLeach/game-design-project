@@ -131,7 +131,13 @@ pub fn obb_collision(
 }
 
 // Semi-implicit Euler: update velocity first, then move using the new velocity.
-fn integrate_velocity(time: Res<Time>, mut bodies: Query<(&mut Transform, &mut Velocity), (With<JustDropped>, Without<BeingPlaced>),>,) {
+fn integrate_velocity(
+    time: Res<Time>, 
+    mut bodies: Query<
+        (&mut Transform, &mut Velocity), 
+        (With<Block>, Without<BeingPlaced>),
+    >,
+) {
     let dt = time.delta_secs();
     for (mut transform, mut velocity) in &mut bodies {
         velocity.y += GRAVITY * dt;
