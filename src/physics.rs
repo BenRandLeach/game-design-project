@@ -143,7 +143,7 @@ fn integrate_velocity(
     time: Res<Time>, 
     mut bodies: Query<
         (&mut Transform, &mut Velocity), 
-        (With<JustDropped>, Without<BeingPlaced>),
+        (With<Block>, Without<BeingPlaced>),
     >,
 ) {
     let dt = time.delta_secs();
