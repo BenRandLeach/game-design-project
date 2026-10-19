@@ -1,5 +1,6 @@
 use crate::game::NewEntity;
 use crate::game::Block;
+use crate::game::Slingshot;
 use crate::game::BeingPlaced;
 use crate::game::JustDropped;
 use crate::game::CurrentlyActive;
@@ -55,6 +56,8 @@ impl Plugin for PhysicsPlugin {
         );
     }
 }
+
+// Create an obb with block stats
 pub fn create_obb(
     transform: &Transform,  
     hwidth: f32,    
@@ -70,6 +73,8 @@ pub fn create_obb(
         axes: [u, v],
     }
 }
+
+// Find the interval a block stretches when projecting it onto a test axis
 pub fn project_obb(
     obb: &Obb, 
     axis: Vec2
@@ -80,6 +85,7 @@ pub fn project_obb(
     let r = (obb.half_dims.x * (ua).abs()) + (obb.half_dims.y * (va).abs());  // Find our radius, which is how far our block
     (cp - r, cp + r)  // interval of stretch on the test axis                // stretches from the center (in each direction)
 }                                                                           // once projected onto the test axis
+
 // Finds the minimum overlap between two intervals
 pub fn interval_overlap(   
     ntv1: (f32, f32),  // naturally [1] >= [0]
@@ -92,12 +98,14 @@ pub fn interval_overlap(
 pub fn obb_collision(
     transform1: &Transform,
     transform2: &Transform,
-    width: f32,
-    height: f32
+    width1: f32,
+    width2: f32,
+    height1: f32,
+    height2: f32
 ) -> (f32, Vec2) {
     
-    let obb1 = create_obb(transform1, width, height);    // these are the two blocks
-    let obb2 = create_obb(transform2, width, height);   // were comparing, obb1 is actively closing in all obb's obb2
+    let obb1 = create_obb(transform1, width1, height1);    // these are the two blocks
+    let obb2 = create_obb(transform2, width2, height2);   // were comparing, obb1 is actively closing in all obb's obb2
                                                        // and hopefully colliding with
     let mut min_touch = f32::MAX;    // min penetration: < 0 means no collision, = 0 means just touching, > 0 means colliding
     let mut min_axis = obb1.axes[0]; //THIS WILL BE OUR NORMAL!!!
@@ -135,7 +143,7 @@ fn integrate_velocity(
     time: Res<Time>, 
     mut bodies: Query<
         (&mut Transform, &mut Velocity), 
-        (With<Block>, Without<BeingPlaced>),
+        (With<JustDropped>, Without<BeingPlaced>),
     >,
 ) {
     let dt = time.delta_secs();
@@ -322,17 +330,32 @@ pub fn resolve_block_collision(
 
 // Constantly check all pairs of blocks for collisions, and resolve them if there is one
 pub fn check_obb_collisions(
-    mut blocks: Query<(Entity, &Block, &mut Transform, &mut Velocity),>,
+    mut blocks: Query<(Entity, &Block, &mut Transform, &mut Velocity)>,
+    slingshots: Query<(), With<Slingshot>>,
 ) {
     let mut combinations = blocks.iter_combinations_mut();
     
     while let Some([(entity1, block1, mut transform1, mut velocity1),
                     (entity2, block2, mut transform2, mut velocity2)]) = combinations.fetch_next() {
+        let (width1, height1) = 
+        if slingshots.contains(entity1) {
+            (15.0, 15.0)
+        } else {
+            (BLOCK_HALF_WIDTH, BLOCK_HALF_HEIGHT)
+        };
+        let (width2, height2) =
+        if slingshots.contains(entity2) {
+            (15.0, 15.0)
+        } else {
+            (BLOCK_HALF_WIDTH, BLOCK_HALF_HEIGHT)
+        };
         let (penetration, normal) = obb_collision(
             &transform1,
             &transform2,
-            BLOCK_HALF_WIDTH,
-            BLOCK_HALF_HEIGHT,
+            width1,
+            width2,
+            height1,
+            height2
         );
 
         if penetration > 0.0 {

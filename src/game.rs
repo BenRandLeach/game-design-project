@@ -125,7 +125,9 @@ fn spawn_block(mut commands: Commands,
     mut currently_active: ResMut<CurrentlyActive>, 
     being_placed: Query<Entity, With<BeingPlaced>>,
     local_side: Res<LocalSide>,
-    client_data: ResMut<ClientInput>, server_data:ResMut<ServerInput>,) {
+    client_data: ResMut<ClientInput>, 
+    server_data:ResMut<ServerInput>,
+) {
     if being_placed.iter().count() > 0 {
         return;
     }
@@ -151,7 +153,7 @@ fn spawn_block(mut commands: Commands,
         },
         // NewEntity,
         BeingPlaced,
-        Velocity(Vec2::new(0.,0.)),
+        Velocity(Vec2::new(2.,0.)),
         local_side.0,
         Transform::from_xyz(local_side.base_center(), 275., 1.),
 )).id();
@@ -168,18 +170,17 @@ fn spawn_slingshot(
 ) {
     if keyboard_input.just_pressed(KeyCode::KeyN) || client_data.input==b'N'{
         stop_input(client_data);
-        let slingshot = commands.spawn((Sprite {image: asset_server.load("slingshot.png"), ..default()}, 
+        let slingshot = commands.spawn((Sprite {image: asset_server.load("Cannon2.png"), ..default()}, 
             Slingshot,
             Block {
                 mass: 1.0,
                 angular_velocity: 0.0,
                 inertia: 0.0,
             },
+            JustDropped,
             Velocity::default(), 
-            NewEntity, 
             local_side.0,
             Transform::from_xyz(local_side.base_center(), 275., 2.),)).id();
-            currently_active.0 = Some(slingshot);
     }
 }
 
