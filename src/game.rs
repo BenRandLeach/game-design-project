@@ -151,7 +151,7 @@ fn spawn_block(mut commands: Commands,
                     },
                    // NewEntity,
                     BeingPlaced,
-                    Velocity(Vec2::new(2.,0.)),
+                    Velocity(Vec2::new(0.,0.)),
                     local_side.0,
         Transform::from_xyz(local_side.base_center(), 275., 1.),
 )).id();
