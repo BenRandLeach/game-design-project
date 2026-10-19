@@ -15,7 +15,8 @@ use bevy::prelude::*;
 use bevy::time::Fixed;
 
 const GRAVITY: f32 = -980.0;
-const RESTITUTION: f32 = 0.2;
+const RESTITUTION: f32 = 1.0; // Between 0.0 - 1.0 , decides elasticity in collisions, 
+                            // the higher the resitution, the more momentum the incoming object gives away.
 const GROUND_Y: f32 = -WIN_H / 2.0;
 const TOWER_BASE_Y: f32 = (-WIN_H / 2.0) + 20.0;
 
@@ -24,10 +25,10 @@ const TOWER_BASE_Y: f32 = (-WIN_H / 2.0) + 20.0;
 const BLOCK_HALF_HEIGHT: f32 = 24.0;
 const BLOCK_HALF_WIDTH: f32 = 8.0;
 
-pub struct Obb{
-    pub center: Vec2,
-    pub half_dims: Vec2,
-    pub axes: [Vec2; 2],
+pub struct Obb{    // Obb object
+    pub center: Vec2,   // Center position (x,y)
+    pub half_dims: Vec2, // (BLOCK_HALF_HEIGHT, BLOCK_HALF_WIDTH)
+    pub axes: [Vec2; 2], // Both unique angles turned into 2 new local axes
 }
 
 #[derive(Component, Deref, DerefMut, Default)]
@@ -55,16 +56,16 @@ impl Plugin for PhysicsPlugin {
     }
 }
 pub fn create_obb(
-    transform: &Transform,
-    hwidth: f32,
-    hheight:f32,
+    transform: &Transform,  
+    hwidth: f32,    
+    hheight:f32,  //h = half
 ) -> Obb {
-    let angle = transform.rotation.to_euler(EulerRot::XYZ).2;
-    let u = Vec2::new(angle.cos(), angle.sin());
-    let v = Vec2::new(-angle.sin(), angle.cos());
+    let angle = transform.rotation.to_euler(EulerRot::XYZ).2; // Finds the angle the block is rotated at
+    let u = Vec2::new(angle.cos(), angle.sin());  // Local width axis
+    let v = Vec2::new(-angle.sin(), angle.cos());  // Local height axis
 
     Obb {
-        center: transform.translation.truncate(),
+        center: transform.translation.truncate(),   
         half_dims: Vec2::new(hwidth, hheight),
         axes: [u, v],
     }
@@ -73,20 +74,21 @@ pub fn project_obb(
     obb: &Obb, 
     axis: Vec2
 ) -> (f32, f32) {
-    let cp = obb.center.dot(axis);
-    let ua = obb.axes[0].dot(axis);
-    let va = obb.axes[1].dot(axis);
-    let r = (obb.half_dims.x * (ua).abs()) + (obb.half_dims.y * (va).abs());
-    (cp - r, cp + r)
-}
-
-pub fn interval_overlap(
-    ntv1: (f32, f32),  // where [1] >= [0]
+    let cp = obb.center.dot(axis);  // project center onto current test axis
+    let ua = obb.axes[0].dot(axis);  // project width axis onto test axis
+    let va = obb.axes[1].dot(axis);  // project height axis onto text axis
+    let r = (obb.half_dims.x * (ua).abs()) + (obb.half_dims.y * (va).abs());  // Find our radius, which is how far our block
+    (cp - r, cp + r)  // interval of stretch on the test axis                // stretches from the center (in each direction)
+}                                                                           // once projected onto the test axis
+// Finds the minimum overlap between two intervals
+pub fn interval_overlap(   
+    ntv1: (f32, f32),  // naturally [1] >= [0]
     ntv2: (f32, f32)
-) -> f32 {
-    ntv1.1.min(ntv2.1) - ntv1.0.max(ntv2.0)
-}
+) -> f32 { // returns penetration depth
+    ntv1.1.min(ntv2.1) - ntv1.0.max(ntv2.0)  // min(max1, max2) - max(min1, min2) where ntv1 = (min1,max1)   (minimum)
+}                                                                                    // ntv2 = (min2,max2)   (overlap)
 
+// Finds if there is a collision using obbs
 pub fn obb_collision(
     transform1: &Transform,
     transform2: &Transform,
@@ -94,39 +96,40 @@ pub fn obb_collision(
     height: f32
 ) -> (f32, Vec2) {
     
-    let obb1 = create_obb(transform1, width, height);
-    let obb2 = create_obb(transform2, width, height);
-
-    let mut min_touch = f32::MAX;
-    let mut min_axis = obb1.axes[0]; //THIS WILL BE OUR NORMAL!!!!!!
-                                     //To be precise it is our axis of minimum penetration, but serves as our normal
-    let axes = [
+    let obb1 = create_obb(transform1, width, height);    // these are the two blocks
+    let obb2 = create_obb(transform2, width, height);   // were comparing, obb1 is actively closing in all obb's obb2
+                                                       // and hopefully colliding with
+    let mut min_touch = f32::MAX;    // min penetration: < 0 means no collision, = 0 means just touching, > 0 means colliding
+    let mut min_axis = obb1.axes[0]; //THIS WILL BE OUR NORMAL!!!
+                                     //To be precise it is our axis of minimum penetration, but serves as our penetration normal
+    let axes = [                     // aka what direction we are sending the momentum through
         obb1.axes[0], 
         obb1.axes[1], 
         obb2.axes[0], 
         obb2.axes[1],
     ]; 
-
+    // decides min_touch and min_axis by testing all 4 axes
     for axis in axes{
         let interval_1 = project_obb(&obb1, axis);
         let interval_2 = project_obb(&obb2, axis);
-        let touch = interval_overlap(interval_1, interval_2);
+        let touch = interval_overlap(interval_1, interval_2);  // penetration 
         if(touch <= 0.0){
             return (touch, axis);
         }
         if(touch < min_touch) {
-            min_touch = touch;
-            min_axis = axis;
+            min_touch = touch; 
+            min_axis = axis;    
         }  
     }
-
-    let direction = obb2.center - obb1.center;
+    // If we find a negative axis, make it positive
+    let direction = obb2.center - obb1.center; 
     if direction.dot(min_axis) < 0.0 {
         min_axis = -min_axis;
     }
 
     (min_touch, min_axis)
 }
+
 // Semi-implicit Euler: update velocity first, then move using the new velocity.
 fn integrate_velocity(time: Res<Time>, mut bodies: Query<(&mut Transform, &mut Velocity), (With<JustDropped>, Without<BeingPlaced>),>,) {
     let dt = time.delta_secs();
@@ -167,6 +170,7 @@ mut commands: Commands,keyboard_input: Res<ButtonInput<KeyCode>>,
         }*/
     }
 }
+
 // Bounds placement horizontally, and moves block while choosing placement
 pub fn bound_placement(mut bodies: Query<(Entity,&mut Transform, &mut Velocity, &Side), With<BeingPlaced>>,
 mut commands: Commands,keyboard_input: Res<ButtonInput<KeyCode>>,client_data: ResMut<ClientInput>,server_data:ResMut<ServerInput>,
@@ -209,6 +213,8 @@ mut commands: Commands,keyboard_input: Res<ButtonInput<KeyCode>>,client_data: Re
         stop_server_input(server_data);
     }
 }
+
+// Rotate current block being placed by 90 degrees (pi/2 radians)
 pub fn rotate_block(
     mut blocks: Query<&mut Transform, With<BeingPlaced>>,
     keyboard: Res<ButtonInput<KeyCode>>,client_data: ResMut<ClientInput>,server_data:ResMut<ServerInput>,
@@ -217,14 +223,11 @@ pub fn rotate_block(
         if let Ok(mut transform) = blocks.single_mut() {
             stop_input(client_data);
             stop_server_input(server_data);
-            //println!("Hi");
-            //transform.rotate_local_z(std::f32::consts::FRAC_PI_2);
-            //println!("Before {:?} ", transform.rotation.to_euler(EulerRot::XYZ).2);
             transform.rotation *= Quat::from_rotation_z(std::f32::consts::FRAC_PI_2);
-            //println!("After {:?} ", transform.rotation.to_euler(EulerRot::XYZ).2);
         }
     }
 }
+
 pub fn fast_fall(
     time: Res<Time>,
     active: Res<CurrentlyActive>,
@@ -247,6 +250,7 @@ pub fn fast_fall(
     }
 }
 
+// Stops blocks from falling above by using AABB's
 pub fn resolve_block_collision(
     mut commands: Commands,
     mut active: Query<(Entity, &mut Transform, &mut Velocity), With<JustDropped>>,
@@ -309,6 +313,8 @@ pub fn resolve_block_collision(
         }
     }
 }
+
+// Constantly check all pairs of blocks for collisions, and resolve them if there is one
 pub fn check_obb_collisions(
     mut blocks: Query<(Entity, &Block, &mut Transform, &mut Velocity),>,
 ) {
