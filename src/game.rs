@@ -141,42 +141,54 @@ fn spawn_block(mut commands: Commands,
 
     let entity = commands.spawn((
         Sprite {
-                        image: asset_server.load("WoodBlock.png"),
-                        ..default()
-                    },
-                    Block {
-                        mass,
-                        angular_velocity: 0.0,
-                        inertia,
-                    },
-                   // NewEntity,
-                    BeingPlaced,
-                    Velocity(Vec2::new(0.,0.)),
-                    local_side.0,
+            image: asset_server.load("WoodBlock.png"),
+            ..default()
+        },
+        Block {
+            mass,
+            angular_velocity: 0.0,
+            inertia,
+        },
+        // NewEntity,
+        BeingPlaced,
+        Velocity(Vec2::new(0.,0.)),
+        local_side.0,
         Transform::from_xyz(local_side.base_center(), 275., 1.),
 )).id();
     currently_active.0 = Some(entity);
     }
 }
 
-fn spawn_slingshot(mut commands: Commands,keyboard_input: Res<ButtonInput<KeyCode>>,asset_server: Res<AssetServer>, mut currently_active: ResMut<CurrentlyActive>,client_data: ResMut<ClientInput>,) {
+fn spawn_slingshot(
+    mut commands: Commands,keyboard_input: Res<ButtonInput<KeyCode>>,
+    asset_server: Res<AssetServer>, 
+    mut currently_active: ResMut<CurrentlyActive>,
+    client_data: ResMut<ClientInput>,
+    local_side: Res<LocalSide>,
+) {
     if keyboard_input.just_pressed(KeyCode::KeyN) || client_data.input==b'N'{
         stop_input(client_data);
         let slingshot = commands.spawn((Sprite {image: asset_server.load("slingshot.png"), ..default()}, 
-                                Slingshot,
-                                Block {
-                                    mass: 1.0,
-                                    angular_velocity: 0.0,
-                                    inertia: 0.0,
-                                },
-                                Velocity::default(), 
-                                NewEntity,
-                                Transform::from_xyz(0., 0., 2.),)).id();
-                                currently_active.0 = Some(slingshot);
+            Slingshot,
+            Block {
+                mass: 1.0,
+                angular_velocity: 0.0,
+                inertia: 0.0,
+            },
+            Velocity::default(), 
+            NewEntity, 
+            local_side.0,
+            Transform::from_xyz(local_side.base_center(), 275., 2.),)).id();
+            currently_active.0 = Some(slingshot);
     }
 }
 
-fn launch_cannonball(mut cannonballs: Query<&mut Velocity, With<Ammo>>, keyboard_input: Res<ButtonInput<KeyCode>>,client_data: ResMut<ClientInput>,) {
+fn launch_cannonball(
+    mut cannonballs: Query<&mut Velocity, With<Ammo>>, 
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    client_data: ResMut<ClientInput>,
+    local_side: Res<LocalSide>,
+) {
     if keyboard_input.just_pressed(KeyCode::KeyM)|| client_data.input==b'M' {
         stop_input(client_data);
         let mut accel = Vec2::ZERO;
