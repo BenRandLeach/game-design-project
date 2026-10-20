@@ -1,6 +1,7 @@
 use crate::game::NewEntity;
 use crate::game::Block;
 use crate::game::Slingshot;
+use crate::game::Ammo;
 use crate::game::BeingPlaced;
 use crate::game::JustDropped;
 use crate::game::CurrentlyActive;
@@ -157,15 +158,21 @@ fn integrate_velocity(
 // Ground-plane clamp only; block-vs-block collision is future work.
 fn resolve_ground_collision(mut bodies: Query<(Entity, &mut Transform, &mut Velocity)>,
 mut commands: Commands,keyboard_input: Res<ButtonInput<KeyCode>>,
+cannonballs: Query<(), With<Ammo>>,
 ) {
     for (entity, mut transform, mut velocity) in &mut bodies {
         let rotation = transform.rotation.to_euler(EulerRot::XYZ).2;
             let (half_width, half_height) =
+            if(cannonballs.contains(entity)){
+                (12.0, 12.0)
+            }
+            else{
                 if (rotation.abs() - std::f32::consts::FRAC_PI_2).abs() < 0.1 {
                     (BLOCK_HALF_HEIGHT, BLOCK_HALF_WIDTH)
                 } else {
                     (BLOCK_HALF_WIDTH, BLOCK_HALF_HEIGHT)
-                };
+                }
+            };
         let bottom = transform.translation.y - half_height;
         let top = transform.translation.y + half_height;
         let right = transform.translation.x + half_width;
@@ -332,6 +339,7 @@ pub fn resolve_block_collision(
 pub fn check_obb_collisions(
     mut blocks: Query<(Entity, &Block, &mut Transform, &mut Velocity)>,
     slingshots: Query<(), With<Slingshot>>,
+    cannonballs: Query<(), With<Ammo>>,
 ) {
     let mut combinations = blocks.iter_combinations_mut();
     
@@ -340,13 +348,21 @@ pub fn check_obb_collisions(
         let (width1, height1) = 
         if slingshots.contains(entity1) {
             (15.0, 15.0)
-        } else {
+        } 
+        else if cannonballs.contains(entity1){
+            (10.0, 10.0)
+        }
+        else{
             (BLOCK_HALF_WIDTH, BLOCK_HALF_HEIGHT)
         };
         let (width2, height2) =
         if slingshots.contains(entity2) {
             (15.0, 15.0)
-        } else {
+        }
+        else if cannonballs.contains(entity2){
+            (12.0, 12.0)
+        }
+        else {
             (BLOCK_HALF_WIDTH, BLOCK_HALF_HEIGHT)
         };
         let (penetration, normal) = obb_collision(

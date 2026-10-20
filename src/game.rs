@@ -43,7 +43,7 @@ pub struct NewEntity;
 pub struct CurrentlyActive(pub Option<Entity>);
 
 #[derive(Component)]
-struct Ammo;
+pub struct Ammo;
 
 #[derive(Message, Default)]
 pub struct Game;
@@ -185,20 +185,36 @@ fn spawn_slingshot(
 }
 
 fn launch_cannonball(
-    mut cannonballs: Query<&mut Velocity, With<Ammo>>, 
+    mut commands: Commands, 
+    asset_server: Res<AssetServer>,
+    slingshots: Query<&Transform, With<Slingshot>>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     client_data: ResMut<ClientInput>,
     local_side: Res<LocalSide>,
 ) {
     if keyboard_input.just_pressed(KeyCode::KeyM)|| client_data.input==b'M' {
         stop_input(client_data);
-        let mut accel = Vec2::ZERO;
 
         if keyboard_input.just_pressed(KeyCode::KeyM) {
-           let launch_vel = Vec2::new(300.0, 1000.0);
+           let launch_vel = Vec2::new(800.0, 500.0);
 
-           for mut velocity in &mut cannonballs {
-                velocity.0 = launch_vel;
+           for transform in &slingshots {
+                let position = transform.translation;
+                commands.spawn((
+                Sprite {
+                    image: asset_server.load("cannonball2.png"), 
+                    custom_size: Some(Vec2::new(250.0, 150.0)),
+                    ..default()
+                }, 
+                Ammo,
+                Block {
+                mass: 1.0,
+                angular_velocity: 0.0,
+                inertia: 0.0,
+                },
+                Velocity(launch_vel),
+                Transform::from_translation(position), 
+            ));
            }
         }
     }
