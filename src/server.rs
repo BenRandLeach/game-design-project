@@ -20,10 +20,6 @@ impl Plugin for ServerPlugin {
             .add_systems(
                 FixedUpdate,
                 server_listener.run_if(resource_exists::<ServerSocket>),
-            )
-            .add_systems(
-              FixedUpdate,
-                do_send_button.run_if(resource_exists::<ServerSocket>),
             );
     }
 }
@@ -63,10 +59,6 @@ pub fn stop_input(mut input: ResMut<ClientInput>)
     input.input=b'0';
 }
 
-pub fn client_Input(input:&[u8])->&[u8]
-{
-    return input;
-}
 
 pub fn server_listener(mut server: ResMut<ServerSocket>,mut input: ResMut<ClientInput>){
     let mut buf = [0u8; 1024];
@@ -76,11 +68,10 @@ pub fn server_listener(mut server: ResMut<ServerSocket>,mut input: ResMut<Client
                 server.client_addy = Some(from);
                 //println!("server got {n} bytes from {from}: {:?}", &buf[..n]);
                 // echo back to whoever sent it
-                client_Input(&buf[..n]);
                 input.input=buf[0];
-                //if let Err(e) = server.socket.send_to(&buf[..n], from) {
-                  //  println!("server couldnt reply: {e}");
-                //}
+                if let Err(e) = server.socket.send_to(&buf[..n], from) {
+                    println!("server couldnt reply: {e}");
+                }
             }
             Err(e) if e.kind() == ErrorKind::WouldBlock => break, //empty
             Err(e) => {
@@ -90,7 +81,7 @@ pub fn server_listener(mut server: ResMut<ServerSocket>,mut input: ResMut<Client
         }
     }
 }
-fn do_send_button(
+/*fn do_send_button(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     server: Option<Res<ServerSocket>>,
     mut status: Single<&mut Text, With<statusText>>,mut input: ResMut<ClientInput>,
@@ -137,4 +128,4 @@ fn do_send_button(
             None => String::from("not hosting"),
         };
     }
-}
+}*/

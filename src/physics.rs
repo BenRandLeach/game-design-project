@@ -200,12 +200,14 @@ mut commands: Commands,keyboard_input: Res<ButtonInput<KeyCode>>,client_data: Re
         transform.translation.x += velocity.x;
         const MOVE_SPEED: f32 = 5.0;
         let mut dir = 0.;
-        if keyboard_input.pressed(KeyCode::KeyA) || client_data.input==b'A'|| server_data.input==b'A' {
+        if server_data.input==b'A' || client_data.input==b'A' {
             dir += -1.;
+            
         }
 
-        if keyboard_input.pressed(KeyCode::KeyD) || client_data.input==b'D'|| server_data.input==b'D' {
+        if server_data.input==b'D'|| client_data.input==b'D' {
             dir += 1.;
+            
         }
         transform.translation.x += dir * MOVE_SPEED;
 
@@ -221,16 +223,14 @@ mut commands: Commands,keyboard_input: Res<ButtonInput<KeyCode>>,client_data: Re
             velocity.x = velocity.x.abs();
         }
 
-        if keyboard_input.pressed(KeyCode::KeyS) || client_data.input==b'S'|| server_data.input==b'S' {
+        if server_data.input==b'S'||client_data.input==b'S' {
             velocity.x = 0.0;
             commands.entity(entity).remove::<BeingPlaced>();       
             commands.entity(entity).insert(JustDropped);    
         }
     }
-    if(client_data.input==b'S'){
-    stop_input(client_data);}
-    if(server_data.input==b'S')
-    {
+    if server_data.input==b'S' || client_data.input==b'S' ||server_data.input==b'D' || client_data.input==b'D' || server_data.input==b'A' || client_data.input==b'A'{
+        stop_input(client_data);
         stop_server_input(server_data);
     }
 }
@@ -240,7 +240,7 @@ pub fn rotate_block(
     mut blocks: Query<&mut Transform, With<BeingPlaced>>,
     keyboard: Res<ButtonInput<KeyCode>>,client_data: ResMut<ClientInput>,server_data:ResMut<ServerInput>,
 ) {
-    if keyboard.just_pressed(KeyCode::KeyR) || client_data.input==b'R' || server_data.input==b'R' {
+    if server_data.input==b'R' || client_data.input==b'R' {
         if let Ok(mut transform) = blocks.single_mut() {
             stop_input(client_data);
             stop_server_input(server_data);
@@ -258,7 +258,7 @@ pub fn fast_fall(
     const ACCEL_INCREASE: f32 = 2000.;
     const MAX_FALL_SPEED: f32 = 10000.;
 
-    if !(keyboard.pressed(KeyCode::KeyS) || client_data.input==b'S' || server_data.input==b'S') {
+    if !(server_data.input==b'S') {
         return;
     }
     else {

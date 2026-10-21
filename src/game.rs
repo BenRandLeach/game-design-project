@@ -131,7 +131,7 @@ fn spawn_block(mut commands: Commands,
     if being_placed.iter().count() > 0 {
         return;
     }
-    if keyboard_input.just_pressed(KeyCode::KeyB) || client_data.input==b'B' || server_data.input==b'B'{
+    if server_data.input==b'B' || client_data.input==b'B'{
         stop_input(client_data);
         stop_server_input(server_data);
     if let Some(active_entity) = currently_active.0 {
@@ -166,10 +166,10 @@ fn spawn_slingshot(
     asset_server: Res<AssetServer>, 
     mut currently_active: ResMut<CurrentlyActive>,
     client_data: ResMut<ClientInput>,
+    server_data:ResMut<ServerInput>,
     local_side: Res<LocalSide>,
 ) {
-    if keyboard_input.just_pressed(KeyCode::KeyN) || client_data.input==b'N'{
-        stop_input(client_data);
+    if server_data.input==b'N' || client_data.input==b'N'{
         let slingshot = commands.spawn((Sprite {image: asset_server.load("Cannon2.png"), ..default()}, 
             Slingshot,
             Block {
@@ -181,6 +181,8 @@ fn spawn_slingshot(
             Velocity::default(), 
             local_side.0,
             Transform::from_xyz(local_side.base_center(), 275., 2.),)).id();
+            stop_input(client_data);
+            stop_server_input(server_data);
     }
 }
 
@@ -190,12 +192,11 @@ fn launch_cannonball(
     slingshots: Query<&Transform, With<Slingshot>>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     client_data: ResMut<ClientInput>,
+    server_data:ResMut<ServerInput>,
     local_side: Res<LocalSide>,
 ) {
-    if keyboard_input.just_pressed(KeyCode::KeyM)|| client_data.input==b'M' {
-        stop_input(client_data);
 
-        if keyboard_input.just_pressed(KeyCode::KeyM) {
+        if server_data.input==b'M'|| client_data.input==b'M'{
            let launch_vel = Vec2::new(800.0, 500.0);
 
            for transform in &slingshots {
@@ -216,6 +217,9 @@ fn launch_cannonball(
                 Transform::from_translation(position), 
             ));
            }
+        if server_data.input==b'M'|| client_data.input==b'M' {
+        stop_input(client_data);
+        stop_server_input(server_data);
         }
     }
 }
