@@ -6,6 +6,8 @@ use std::{
     net::{SocketAddr, UdpSocket},
 };
 
+
+
 #[derive(Resource,Default)]
 pub struct ServerInput{
     pub input: u8,
@@ -59,7 +61,7 @@ pub fn connect(commands: &mut Commands, text: &str) -> String {
     commands.insert_resource(ClientSocket { socket, serv_addy });
     format!("Ready to talk to {serv_addy}")
 }
-//draws the send button and ststus line
+//draws the send button and status line
 fn network_ui(mut commands: Commands, client: Option<Res<ClientSocket>>) {
     let status_mess = match &client {
         Some(c) => format!("connected to {}", c.serv_addy),
@@ -163,6 +165,7 @@ fn do_send_button(
             None => String::from("Not connected, enter IP on the start screen"),
         };
     }
+    
     
 }
 

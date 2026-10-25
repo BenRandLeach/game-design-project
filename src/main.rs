@@ -64,6 +64,10 @@ fn main() {
         ))
         .init_resource::<server::ClientInput>()
         .init_resource::<client::ServerInput>()
+        .init_resource::<server::Player1Money>()
+        .init_resource::<server::Player2Money>()
+        .init_resource::<server::Player1Address>()
+        .init_resource::<server::Player2Address>()
         // Run the game
         .run();
 }
