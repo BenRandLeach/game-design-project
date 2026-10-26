@@ -6,6 +6,8 @@ use std::{
     net::{SocketAddr, UdpSocket},
 };
 
+
+
 #[derive(Resource,Default)]
 pub struct ServerInput{
     pub input: u8,
@@ -59,7 +61,7 @@ pub fn connect(commands: &mut Commands, text: &str) -> String {
     commands.insert_resource(ClientSocket { socket, serv_addy });
     format!("Ready to talk to {serv_addy}")
 }
-//draws the send button and ststus line
+//draws the send button and status line
 fn network_ui(mut commands: Commands, client: Option<Res<ClientSocket>>) {
     let status_mess = match &client {
         Some(c) => format!("connected to {}", c.serv_addy),
@@ -103,7 +105,7 @@ fn do_send_button(
             None => String::from("Not connected, enter IP on the start screen"),
         };
     }
-    if keyboard_input.just_pressed(KeyCode::KeyS)
+    else if keyboard_input.pressed(KeyCode::KeyS)
     {
         status.0 = match &client {
             Some(c) => match c.socket.send_to(b"S", c.serv_addy) {
@@ -113,7 +115,7 @@ fn do_send_button(
             None => String::from("Not connected, enter IP on the start screen"),
         };
     }
-    if keyboard_input.just_pressed(KeyCode::KeyR)
+    else if keyboard_input.just_pressed(KeyCode::KeyR)
     {
         status.0 = match &client {
             Some(c) => match c.socket.send_to(b"R", c.serv_addy) {
@@ -123,6 +125,48 @@ fn do_send_button(
             None => String::from("Not connected, enter IP on the start screen"),
         };
     }
+    else if keyboard_input.pressed(KeyCode::KeyA)
+    {
+        status.0 = match &client {
+            Some(c) => match c.socket.send_to(b"A", c.serv_addy) {
+                Ok(n) => format!("sent {n} bytes"),
+                Err(e) => format!("failure to send : {e}"),
+            },
+            None => String::from("Not connected, enter IP on the start screen"),
+        };
+    }
+    else if keyboard_input.pressed(KeyCode::KeyD)
+    {
+        status.0 = match &client {
+            Some(c) => match c.socket.send_to(b"D", c.serv_addy) {
+                Ok(n) => format!("sent {n} bytes"),
+                Err(e) => format!("failure to send : {e}"),
+            },
+            None => String::from("Not connected, enter IP on the start screen"),
+        };
+    }
+    else if keyboard_input.just_pressed(KeyCode::KeyM)
+    {
+        status.0 = match &client {
+            Some(c) => match c.socket.send_to(b"M", c.serv_addy) {
+                Ok(n) => format!("sent {n} bytes"),
+                Err(e) => format!("failure to send : {e}"),
+            },
+            None => String::from("Not connected, enter IP on the start screen"),
+        };
+    }
+    else if keyboard_input.just_pressed(KeyCode::KeyN)
+    {
+        status.0 = match &client {
+            Some(c) => match c.socket.send_to(b"N", c.serv_addy) {
+                Ok(n) => format!("sent {n} bytes"),
+                Err(e) => format!("failure to send : {e}"),
+            },
+            None => String::from("Not connected, enter IP on the start screen"),
+        };
+    }
+    
+    
 }
 
 fn client_listener(
