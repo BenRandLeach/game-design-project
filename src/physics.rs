@@ -10,7 +10,7 @@ use crate::server::stop_input;
 use crate::client::ServerInput;
 use crate::client::stop_server_input;
 use crate::side::Side;
-use crate::{GameState, WIN_H};
+use crate::{GameState, WIN_H, WIN_W};
 use bevy::math::bounding::{Aabb2d, BoundingVolume, IntersectsVolume};
 use bevy::input::mouse::MouseButton::Right;
 use bevy::prelude::*;
@@ -20,6 +20,8 @@ const GRAVITY: f32 = -980.0;
 const RESTITUTION: f32 = 1.0; // Between 0.0 - 1.0 , decides elasticity in collisions, 
                             // the higher the resitution, the more momentum the incoming object gives away.
 const GROUND_Y: f32 = -WIN_H / 2.0;
+const LEFT: f32 = -WIN_W / 2.0;
+const RIGHT: f32 = WIN_W / 2.0;
 const TOWER_BASE_Y: f32 = (-WIN_H / 2.0) + 20.0;
 
 // TODO(physics): hardcoded for WoodBlock.png (48px); replace with a
@@ -50,7 +52,8 @@ impl Plugin for PhysicsPlugin {
                 //resolve_block_collision,
                 bound_placement,
                 rotate_block,
-                //check_obb_collisions,
+                apply_ground_friction,
+                remove_lost_entities,
             )
                 .chain()
                 .run_if(in_state(GameState::Game)),
@@ -155,6 +158,42 @@ fn integrate_velocity(
     }
 }
 
+fn apply_ground_friction(
+    time: Res<Time>,
+    mut bodies: Query<
+        (&mut Velocity, &Block),
+        (With<Block>, Without<BeingPlaced>),
+    >,
+) {
+    let dt = time.delta_secs();
+    for (mut velocity, block) in &mut bodies {
+        let friction = block.mass * GRAVITY.abs() * block.fcoeff;
+        let speed = velocity.0.x.abs();
+        let change_in_velocity = friction * dt;
+
+        if(speed <= change_in_velocity){
+            velocity.0.x = 0.0;
+        } else {
+            velocity.0.x -= velocity.0.x.signum() - change_in_velocity;
+        }
+    }
+}
+
+fn remove_lost_entities(
+    mut commands: Commands,
+    bodies: Query<(&Transform, Entity), With<Block>>,
+) {
+    for (transform, entity) in &bodies {
+        if transform.translation.y < GROUND_Y - 48.0
+        || transform.translation.x < LEFT
+        || transform.translation.x > RIGHT
+        {
+            commands.entity(entity).despawn();
+            println!("Entity Cleared! {:?} ", entity);
+        }
+    }
+}
+
 // Ground-plane clamp only; block-vs-block collision is future work.
 fn resolve_ground_collision(mut bodies: Query<(Entity, &mut Transform, &mut Velocity)>,
 mut commands: Commands,keyboard_input: Res<ButtonInput<KeyCode>>,
@@ -200,14 +239,12 @@ mut commands: Commands,keyboard_input: Res<ButtonInput<KeyCode>>,client_data: Re
         transform.translation.x += velocity.x;
         const MOVE_SPEED: f32 = 5.0;
         let mut dir = 0.;
-        if server_data.input==b'A' || client_data.input==b'A' {
+        if keyboard_input.pressed(KeyCode::KeyA) || client_data.input==b'A'|| server_data.input==b'A' {
             dir += -1.;
-            
         }
 
-        if server_data.input==b'D'|| client_data.input==b'D' {
+        if keyboard_input.pressed(KeyCode::KeyD) || client_data.input==b'D'|| server_data.input==b'D' {
             dir += 1.;
-            
         }
         transform.translation.x += dir * MOVE_SPEED;
 
@@ -223,14 +260,16 @@ mut commands: Commands,keyboard_input: Res<ButtonInput<KeyCode>>,client_data: Re
             velocity.x = velocity.x.abs();
         }
 
-        if server_data.input==b'S'||client_data.input==b'S' {
+        if keyboard_input.pressed(KeyCode::KeyS) || client_data.input==b'S'|| server_data.input==b'S' {
             velocity.x = 0.0;
             commands.entity(entity).remove::<BeingPlaced>();       
             commands.entity(entity).insert(JustDropped);    
         }
     }
-    if server_data.input==b'S' || client_data.input==b'S' ||server_data.input==b'D' || client_data.input==b'D' || server_data.input==b'A' || client_data.input==b'A'{
-        stop_input(client_data);
+    if(client_data.input==b'S'){
+    stop_input(client_data);}
+    if(server_data.input==b'S')
+    {
         stop_server_input(server_data);
     }
 }
@@ -240,7 +279,7 @@ pub fn rotate_block(
     mut blocks: Query<&mut Transform, With<BeingPlaced>>,
     keyboard: Res<ButtonInput<KeyCode>>,client_data: ResMut<ClientInput>,server_data:ResMut<ServerInput>,
 ) {
-    if server_data.input==b'R' || client_data.input==b'R' {
+    if keyboard.just_pressed(KeyCode::KeyR) || client_data.input==b'R' || server_data.input==b'R' {
         if let Ok(mut transform) = blocks.single_mut() {
             stop_input(client_data);
             stop_server_input(server_data);
@@ -258,7 +297,7 @@ pub fn fast_fall(
     const ACCEL_INCREASE: f32 = 2000.;
     const MAX_FALL_SPEED: f32 = 10000.;
 
-    if !(server_data.input==b'S') {
+    if !(keyboard.pressed(KeyCode::KeyS) || client_data.input==b'S' || server_data.input==b'S') {
         return;
     }
     else {
@@ -381,10 +420,12 @@ pub fn check_obb_collisions(
             let impulse_den = (1.0/block1.mass) + (1.0/block2.mass);
             let impulse = impulse_num/impulse_den;
             let impulse_vec = impulse * normal;
+
             if(velocity_along_normal < 0.0){
                 velocity1.0 -= impulse_vec / block1.mass;
                 velocity2.0 += impulse_vec / block2.mass; 
             }
+
             transform1.translation -= (normal * penetration / 2.0).extend(0.0);
             transform2.translation += (normal * penetration / 2.0).extend(0.0);
         }

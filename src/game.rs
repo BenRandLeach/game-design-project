@@ -24,7 +24,7 @@ pub struct Block {
     pub mass: f32,
     pub angular_velocity: f32,
     pub inertia: f32,
-    //pub friction: f32,
+    pub fcoeff: f32,
 }
 
 #[derive(Component)]
@@ -150,6 +150,7 @@ fn spawn_block(mut commands: Commands,
             mass,
             angular_velocity: 0.0,
             inertia,
+            fcoeff: 0.25,
         },
         // NewEntity,
         BeingPlaced,
@@ -176,6 +177,7 @@ fn spawn_slingshot(
                 mass: 1.0,
                 angular_velocity: 0.0,
                 inertia: 0.0,
+                fcoeff: 0.75,
             },
             JustDropped,
             Velocity::default(), 
@@ -212,6 +214,7 @@ fn launch_cannonball(
                 mass: 1.0,
                 angular_velocity: 0.0,
                 inertia: 0.0,
+                fcoeff: 0.75,
                 },
                 Velocity(launch_vel),
                 Transform::from_translation(position), 
