@@ -41,7 +41,7 @@ pub struct Velocity(pub Vec2);
 pub struct PhysicsPlugin;
 impl Plugin for PhysicsPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(Time::<Fixed>::from_hz(60.0));
+        app.insert_resource(Time::<Fixed>::from_hz(64.0));
         app.add_systems(
             FixedUpdate,
             (
