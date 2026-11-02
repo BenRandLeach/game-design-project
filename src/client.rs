@@ -1,4 +1,5 @@
 use crate::GameState;
+use crate::game::BlockId;
 use crate::server::server_listener;
 use bevy::prelude::*;
 use bevy::{color::palettes::css::DARK_BLUE, window::WindowEvent::PanGesture};
@@ -7,10 +8,8 @@ use std::{
     net::{SocketAddr, UdpSocket},
 };
 
-
-
-#[derive(Resource,Default)]
-pub struct ServerInput{
+#[derive(Resource, Default)]
+pub struct ServerInput {
     pub input: u8,
 }
 
@@ -26,7 +25,9 @@ impl Plugin for ClientPlugin {
             .add_systems(
                 FixedUpdate,
                 // After the server, so the host gets its own echo on the same tick
-                client_listener.after(server_listener).run_if(resource_exists::<ClientSocket>),
+                client_listener
+                    .after(server_listener)
+                    .run_if(resource_exists::<ClientSocket>),
             );
     }
 }
@@ -42,9 +43,8 @@ pub struct statusText;
 #[derive(Component)]
 pub struct SendButton;
 
-pub fn stop_server_input(mut input: ResMut<ServerInput>)
-{
-    input.input=b'0';
+pub fn stop_server_input(mut input: ResMut<ServerInput>) {
+    input.input = b'0';
 }
 
 pub fn connect(commands: &mut Commands, text: &str) -> String {
@@ -84,11 +84,7 @@ fn network_ui(mut commands: Commands, client: Option<Res<ClientSocket>>) {
         ))
         .id();
     let send_button = commands
-        .spawn((
-            Button,
-            SendButton,
-            BackgroundColor(DARK_BLUE.into()),
-        ))
+        .spawn((Button, SendButton, BackgroundColor(DARK_BLUE.into())))
         .id();
     //let send_label = commands.spawn(Text::new("Send")).id();
     let status = commands.spawn((Text::new(status_mess), statusText)).id();
@@ -98,8 +94,7 @@ fn do_send_button(
     client: Option<Res<ClientSocket>>,
     mut status: Single<&mut Text, With<statusText>>,
 ) {
-    if keyboard_input.just_pressed(KeyCode::KeyB)
-    {
+    if keyboard_input.just_pressed(KeyCode::KeyB) {
         status.0 = match &client {
             Some(c) => match c.socket.send_to(b"B", c.serv_addy) {
                 Ok(n) => format!("sent {n} bytes"),
@@ -107,9 +102,7 @@ fn do_send_button(
             },
             None => String::from("Not connected, enter IP on the start screen"),
         };
-    }
-    else if keyboard_input.pressed(KeyCode::KeyS)
-    {
+    } else if keyboard_input.pressed(KeyCode::KeyS) {
         status.0 = match &client {
             Some(c) => match c.socket.send_to(b"S", c.serv_addy) {
                 Ok(n) => format!("sent {n} bytes"),
@@ -117,9 +110,7 @@ fn do_send_button(
             },
             None => String::from("Not connected, enter IP on the start screen"),
         };
-    }
-    else if keyboard_input.just_pressed(KeyCode::KeyR)
-    {
+    } else if keyboard_input.just_pressed(KeyCode::KeyR) {
         status.0 = match &client {
             Some(c) => match c.socket.send_to(b"R", c.serv_addy) {
                 Ok(n) => format!("sent {n} bytes"),
@@ -127,9 +118,7 @@ fn do_send_button(
             },
             None => String::from("Not connected, enter IP on the start screen"),
         };
-    }
-    else if keyboard_input.pressed(KeyCode::KeyA)
-    {
+    } else if keyboard_input.pressed(KeyCode::KeyA) {
         status.0 = match &client {
             Some(c) => match c.socket.send_to(b"A", c.serv_addy) {
                 Ok(n) => format!("sent {n} bytes"),
@@ -137,9 +126,7 @@ fn do_send_button(
             },
             None => String::from("Not connected, enter IP on the start screen"),
         };
-    }
-    else if keyboard_input.pressed(KeyCode::KeyD)
-    {
+    } else if keyboard_input.pressed(KeyCode::KeyD) {
         status.0 = match &client {
             Some(c) => match c.socket.send_to(b"D", c.serv_addy) {
                 Ok(n) => format!("sent {n} bytes"),
@@ -147,9 +134,7 @@ fn do_send_button(
             },
             None => String::from("Not connected, enter IP on the start screen"),
         };
-    }
-    else if keyboard_input.just_pressed(KeyCode::KeyM)
-    {
+    } else if keyboard_input.just_pressed(KeyCode::KeyM) {
         status.0 = match &client {
             Some(c) => match c.socket.send_to(b"M", c.serv_addy) {
                 Ok(n) => format!("sent {n} bytes"),
@@ -157,9 +142,7 @@ fn do_send_button(
             },
             None => String::from("Not connected, enter IP on the start screen"),
         };
-    }
-    else if keyboard_input.just_pressed(KeyCode::KeyN)
-    {
+    } else if keyboard_input.just_pressed(KeyCode::KeyN) {
         status.0 = match &client {
             Some(c) => match c.socket.send_to(b"N", c.serv_addy) {
                 Ok(n) => format!("sent {n} bytes"),
@@ -168,23 +151,68 @@ fn do_send_button(
             None => String::from("Not connected, enter IP on the start screen"),
         };
     }
-    
-    
 }
 
 pub fn client_listener(
+    mut commands: Commands,
     mut client: ResMut<ClientSocket>,
-    mut status: Query<&mut Text, With<statusText>>,mut input: ResMut<ServerInput>
+    mut status: Query<&mut Text, With<statusText>>,
+    mut input: ResMut<ServerInput>,
+    asset_server: Res<AssetServer>,
+    mut blocks: Query<(&BlockId, &mut Transform)>,
 ) {
     let mut buf = [0u8; 1024];
+    let mut spawned_this_call: Vec<u32> = Vec::new();
+
     loop {
         match client.socket.recv_from(&mut buf) {
             Ok((n, from)) => {
-                let reply = String::from_utf8_lossy(&buf[..n]);
-                input.input=buf[0];
-                println!("client got {n} bytes from {from}: {:?}", &buf[..n]);
-                for mut t in &mut status {
-                    t.0 = format!("got a reply form {from}: {reply}");
+                if n == 0 {
+                    continue;
+                }
+                let first_byte = buf[0];
+
+                if first_byte.is_ascii_digit() {
+                    let text = String::from_utf8_lossy(&buf[..n]);
+                    let mut parts = text.split(',');
+
+                    let (Some(id_s), Some(x_s), Some(y_s)) =
+                        (parts.next(), parts.next(), parts.next())
+                    else {
+                        continue;
+                    };
+
+                    let (Ok(id), Ok(x), Ok(y)) = (
+                        id_s.trim().parse::<u32>(),
+                        x_s.trim().parse::<f32>(),
+                        y_s.trim().parse::<f32>(),
+                    ) else {
+                        continue;
+                    };
+
+                    let mut found = false;
+                    for (bid, mut transform) in &mut blocks {
+                        if bid.0 == id {
+                            transform.translation.x = x;
+                            transform.translation.y = y;
+                            found = true;
+                            break;
+                        }
+                    }
+
+                    if !found && !spawned_this_call.contains(&id) {
+                        commands.spawn((
+                            Sprite {
+                                image: asset_server.load("WoodBlock.png"),
+                                ..default()
+                            },
+                            BlockId(id),
+                            Transform::from_xyz(x, y, 1.0),
+                        ));
+                        spawned_this_call.push(id);
+                    }
+                } else {
+                    input.input = first_byte;
                 }
             }
             Err(e) if e.kind() == ErrorKind::WouldBlock => break,

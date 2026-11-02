@@ -68,7 +68,7 @@ fn main() {
         .init_resource::<server::Player2Money>()
         .init_resource::<server::Player1Address>()
         .init_resource::<server::Player2Address>()
-        .init_resource::<NextBlockId>()
+        .init_resource::<game::NextBlockId>()
         // Run the game
         .run();
 }

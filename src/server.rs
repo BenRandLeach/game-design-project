@@ -1,6 +1,7 @@
-use crate::GameState;
 use crate::client::{SendButton, statusText};
-use bevy::prelude::*;
+use crate::game::{Block, BlockId};
+use crate::{GameState, server};
+use bevy::{prelude::*, transform};
 use std::{
     io::ErrorKind,
     net::{SocketAddr, UdpSocket},
@@ -43,11 +44,16 @@ impl Plugin for ServerPlugin {
                 FixedUpdate,
                 server_listener
                     .run_if(resource_exists::<ServerSocket>.and_then(check_if_players_exist)),
+            )
+            .add_systems(
+                FixedUpdate,
+                do_send_blockpos
+                    .run_if(resource_exists::<ServerSocket>.and_then(check_if_players_exist)),
             );
     }
 }
 #[derive(Resource)]
-pub struct ServerSocket {
+struct ServerSocket {
     socket: UdpSocket,
     client_addy: Option<SocketAddr>,
 }
@@ -149,6 +155,28 @@ pub fn server_listener(
             Err(e) => {
                 println!("recv error: {e}");
                 break;
+            }
+        }
+    }
+}
+fn do_send_blockpos(
+    server: Res<ServerSocket>,
+    player1: Res<Player1Address>,
+    player2: Res<Player2Address>,
+    blocks: Query<(&BlockId, &Transform), With<Block>>,
+) {
+    for (id, transform) in &blocks {
+        let pos = transform.translation;
+        let msg = format!("{},{},{}", id.0, pos.x, pos.y);
+        let bytes = msg.as_bytes();
+        if let Some(addr) = player1.0 {
+            if let Err(e) = server.socket.send_to(bytes, addr) {
+                println!("server couldnt send block pos to player 1: {e}");
+            }
+        }
+        if let Some(addr2) = player2.0 {
+            if let Err(e) = server.socket.send_to(bytes, addr2) {
+                println!("server couldnt send block pos to player 2: {e}");
             }
         }
     }

@@ -3,6 +3,9 @@ use bevy::prelude::*;
 use std::thread;
 use std::time::Duration;
 */
+use crate::server::IsHost;
+use crate::side::Side;
+use crate::{GameState, WIN_H};
 const SLIDE_SIZE: Vec2 = Vec2::new(1280.0, 720.0);
 
 use crate::client::ServerInput;
@@ -69,8 +72,6 @@ impl Plugin for GamePlugin {
             .add_systems(OnEnter(GameState::Game), setup_game)
             .add_systems(Update, game_mess_listener)
             .add_systems(Update, swap_to_credits.run_if(in_state(GameState::Game)))
-            .add_systems(Update, spawn_slingshot.run_if(in_state(GameState::Game)))
-            .add_systems(Update, launch_cannonball.run_if(in_state(GameState::Game)))
             .add_systems(
                 Update,
                 (spawn_block, spawn_slingshot, launch_cannonball)
