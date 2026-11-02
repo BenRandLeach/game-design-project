@@ -7,40 +7,42 @@ use std::{
 };
 pub struct ServerPlugin;
 
-
 #[derive(Resource, Default)]
 pub struct Player1Address(pub Option<SocketAddr>);
-
 
 #[derive(Resource, Default)]
 pub struct Player2Address(pub Option<SocketAddr>);
 
-#[derive(Resource,Default)]
-pub struct ClientInput{
+#[derive(Resource, Default)]
+pub struct ClientInput {
     pub input: u8,
 }
 
-#[derive(Resource,Default)]
-pub struct Player1Money{
+#[derive(Resource, Default)]
+pub struct Player1Money {
     pub money: u64,
 }
 
-#[derive(Resource,Default)]
-pub struct Player2Money{
+#[derive(Resource, Default)]
+pub struct Player2Money {
     pub money: u64,
 }
-
-
+#[derive(Resource)]
+pub struct IsHost;
 
 impl Plugin for ServerPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, setup_server_socket)
             // app.add_systems(Update, server_listener);
-            .add_systems(FixedUpdate,
-                get_players.run_if(resource_exists::<ServerSocket>.and_then(not(check_if_players_exist))))
             .add_systems(
                 FixedUpdate,
-                server_listener.run_if(resource_exists::<ServerSocket>.and_then(check_if_players_exist)),
+                get_players
+                    .run_if(resource_exists::<ServerSocket>.and_then(not(check_if_players_exist))),
+            )
+            .add_systems(
+                FixedUpdate,
+                server_listener
+                    .run_if(resource_exists::<ServerSocket>.and_then(check_if_players_exist)),
             );
     }
 }
@@ -58,45 +60,43 @@ impl ServerSocket {
     }
 }
 
-fn check_if_players_exist(mut player1: Res<Player1Address>,mut player2:Res<Player2Address>)->bool
-{
-    if player1.0.is_none() || player2.0.is_none()
-    {
+fn check_if_players_exist(
+    mut player1: Res<Player1Address>,
+    mut player2: Res<Player2Address>,
+) -> bool {
+    if player1.0.is_none() || player2.0.is_none() {
         return false;
     }
     return true;
 }
 
-fn get_players(mut server: ResMut<ServerSocket>,mut player1: ResMut<Player1Address>,mut player2:ResMut<Player2Address>)
-{
+fn get_players(
+    mut server: ResMut<ServerSocket>,
+    mut player1: ResMut<Player1Address>,
+    mut player2: ResMut<Player2Address>,
+) {
     let mut buf = [0u8; 1024];
     loop {
         match server.socket.recv_from(&mut buf) {
             Ok((n, from)) => {
-                if player1.0.is_none()
-                {
-                    player1.0=Some(from);
+                if player1.0.is_none() {
+                    player1.0 = Some(from);
                     println!("Player 1 connected: {from}");
-                }
-                else if player2.0.is_none()
-                {
-                    player2.0=Some(from);
+                } else if player2.0.is_none() {
+                    player2.0 = Some(from);
                     println!("Player 2 connected: {from}");
                 }
-            }  
-          Err(e) if e.kind() == ErrorKind::WouldBlock => break, //empty
+            }
+            Err(e) if e.kind() == ErrorKind::WouldBlock => break, //empty
             Err(e) => {
                 println!("recv error: {e}");
                 break;
-            }      
+            }
         }
     }
 }
 
-
-
 fn setup_server_socket(mut commands: Commands) {
-
     match UdpSocket::bind("0.0.0.0:7777") {
         Ok(socket) => {
             socket
@@ -104,6 +104,7 @@ fn setup_server_socket(mut commands: Commands) {
                 .expect("couldnt set non blocking");
             println!("i am the host!");
             commands.insert_resource(ServerSocket::new(socket));
+            commands.insert_resource(IsHost);
         }
         Err(e) => {
             println!("not the host, the port is taken: {e}");
@@ -114,30 +115,35 @@ fn setup_server_socket(mut commands: Commands) {
     //commands.insert_resource(ServerSocket(socket));
 }
 
-pub fn stop_input(mut input: ResMut<ClientInput>)
-{
-    input.input=b'0';
+pub fn stop_input(mut input: ResMut<ClientInput>) {
+    input.input = b'0';
 }
 
-
-pub fn server_listener(mut server: ResMut<ServerSocket>,mut input: ResMut<ClientInput>,player1: Res<Player1Address>,player2:Res<Player2Address>){
+pub fn server_listener(
+    mut server: ResMut<ServerSocket>,
+    mut input: ResMut<ClientInput>,
+    player1: Res<Player1Address>,
+    player2: Res<Player2Address>,
+) {
     let mut buf = [0u8; 1024];
     loop {
         match server.socket.recv_from(&mut buf) {
             Ok((n, from)) => {
                 //server.client_addy = Some(from);
-                
+
                 //println!("server got {n} bytes from {from}: {:?}", &buf[..n]);
                 // echo back to whoever sent it
-                input.input=buf[0];
-                if let Some(addr) = player1.0{
-                if let Err(e) = server.socket.send_to(&buf[..n], addr) {
-                    println!("server couldnt reply: {e}");
-                }}
-                if let Some(addr) = player2.0{
-                if let Err(e) = server.socket.send_to(&buf[..n], addr) {
-                    println!("server couldnt reply: {e}");
-                }}
+                input.input = buf[0];
+                if let Some(addr) = player1.0 {
+                    if let Err(e) = server.socket.send_to(&buf[..n], addr) {
+                        println!("server couldnt reply: {e}");
+                    }
+                }
+                if let Some(addr2) = player2.0 {
+                    if let Err(e) = server.socket.send_to(&buf[..n], addr2) {
+                        println!("server couldnt reply: {e}");
+                    }
+                }
             }
             Err(e) if e.kind() == ErrorKind::WouldBlock => break, //empty
             Err(e) => {

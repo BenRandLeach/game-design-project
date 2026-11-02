@@ -1,12 +1,12 @@
 use bevy::{prelude::*, window::PresentMode};
 
-mod startscreen;
+mod client;
 mod credits;
 mod game;
 mod physics;
 mod server;
-mod client;
 mod side;
+mod startscreen;
 
 const TITLE: &str = "Tower Balance";
 const WIN_W: f32 = 1280.;
@@ -68,6 +68,7 @@ fn main() {
         .init_resource::<server::Player2Money>()
         .init_resource::<server::Player1Address>()
         .init_resource::<server::Player2Address>()
+        .init_resource::<NextBlockId>()
         // Run the game
         .run();
 }
