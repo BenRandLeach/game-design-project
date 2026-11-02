@@ -176,16 +176,17 @@ pub fn client_listener(
                     let text = String::from_utf8_lossy(&buf[..n]);
                     let mut parts = text.split(',');
 
-                    let (Some(id_s), Some(x_s), Some(y_s)) =
-                        (parts.next(), parts.next(), parts.next())
+                    let (Some(id_s), Some(x_s), Some(y_s), Some(rot_s)) =
+                        (parts.next(), parts.next(), parts.next(), parts.next())
                     else {
                         continue;
                     };
 
-                    let (Ok(id), Ok(x), Ok(y)) = (
+                    let (Ok(id), Ok(x), Ok(y), Ok(rot)) = (
                         id_s.trim().parse::<u32>(),
                         x_s.trim().parse::<f32>(),
                         y_s.trim().parse::<f32>(),
+                        rot_s.trim().parse::<f32>(),
                     ) else {
                         continue;
                     };
@@ -195,6 +196,7 @@ pub fn client_listener(
                         if bid.0 == id {
                             transform.translation.x = x;
                             transform.translation.y = y;
+                            transform.rotation = Quat::from_rotation_z(rot);
                             found = true;
                             break;
                         }
@@ -207,7 +209,8 @@ pub fn client_listener(
                                 ..default()
                             },
                             BlockId(id),
-                            Transform::from_xyz(x, y, 1.0),
+                            Transform::from_xyz(x, y, 1.0)
+                                .with_rotation(Quat::from_rotation_z(rot)),
                         ));
                         spawned_this_call.push(id);
                     }

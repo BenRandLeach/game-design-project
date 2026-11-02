@@ -448,7 +448,7 @@ fn integrate_velocity(body: &mut Body, dt: f32) {
     body.transform.rotate_z(body.ang_vel * dt);
 }
 
-fn simulate(
+pub fn simulate(
     time: Res<Time>,
     mut commands: Commands,
     mut cache: Local<ContactCache>,
@@ -594,16 +594,17 @@ pub fn bound_placement(
 // Rotate current block being placed by 90 degrees (pi/2 radians)
 pub fn rotate_block(
     mut blocks: Query<&mut Transform, With<BeingPlaced>>,
-    client_data: ResMut<ClientInput>,
-    server_data: ResMut<ServerInput>,
+    mut client_data: ResMut<ClientInput>,
+    mut server_data: ResMut<ServerInput>,
 ) {
-    // Only the echo from the server rotates, every window gets exactly one of those. The local key and
-    // ClientInput are extra copies of the same press, and two quarter turns look like no rotation at all.
+    let rotate = client_data.input == b'R' || server_data.input == b'R';
     if client_data.input == b'R' {
-        stop_input(client_data);
+        client_data.input = b'0';
     }
     if server_data.input == b'R' {
-        stop_server_input(server_data);
+        server_data.input = b'0';
+    }
+    if rotate {
         if let Ok(mut transform) = blocks.single_mut() {
             transform.rotation *= Quat::from_rotation_z(std::f32::consts::FRAC_PI_2);
         }

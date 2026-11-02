@@ -48,6 +48,7 @@ impl Plugin for ServerPlugin {
             .add_systems(
                 FixedUpdate,
                 do_send_blockpos
+                    .after(crate::physics::simulate)
                     .run_if(resource_exists::<ServerSocket>.and_then(check_if_players_exist)),
             );
     }
@@ -85,6 +86,9 @@ fn get_players(
     loop {
         match server.socket.recv_from(&mut buf) {
             Ok((n, from)) => {
+                if player1.0 == Some(from) || player2.0 == Some(from) {
+                    continue;
+                }
                 if player1.0.is_none() {
                     player1.0 = Some(from);
                     println!("Player 1 connected: {from}");
@@ -93,7 +97,7 @@ fn get_players(
                     println!("Player 2 connected: {from}");
                 }
             }
-            Err(e) if e.kind() == ErrorKind::WouldBlock => break, //empty
+            Err(e) if e.kind() == ErrorKind::WouldBlock => break,
             Err(e) => {
                 println!("recv error: {e}");
                 break;
@@ -167,7 +171,8 @@ fn do_send_blockpos(
 ) {
     for (id, transform) in &blocks {
         let pos = transform.translation;
-        let msg = format!("{},{},{}", id.0, pos.x, pos.y);
+        let rot = transform.rotation.to_scaled_axis().z;
+        let msg = format!("{},{},{},{}", id.0, pos.x, pos.y, rot);
         let bytes = msg.as_bytes();
         if let Some(addr) = player1.0 {
             if let Err(e) = server.socket.send_to(bytes, addr) {
