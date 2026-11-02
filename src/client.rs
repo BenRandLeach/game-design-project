@@ -1,4 +1,5 @@
 use crate::GameState;
+use crate::server::server_listener;
 use bevy::prelude::*;
 use bevy::{color::palettes::css::DARK_BLUE, window::WindowEvent::PanGesture};
 use std::{
@@ -18,22 +19,20 @@ impl Plugin for ClientPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(GameState::Game), network_ui)
             .add_systems(
-                FixedUpdate,
+                // Not FixedUpdate: a frame can run 0 or 2 ticks, which drops or doubles key presses
+                Update,
                 do_send_button.run_if(resource_exists::<ClientSocket>),
             )
             .add_systems(
                 FixedUpdate,
-                client_listener.run_if(resource_exists::<ClientSocket>),
-            )
-            .add_systems(
-                Update,
-                local_input.run_if(in_state(GameState::Game).and_then(not(resource_exists::<ClientSocket>))),
+                // After the server, so the host gets its own echo on the same tick
+                client_listener.after(server_listener).run_if(resource_exists::<ClientSocket>),
             );
     }
 }
 
 #[derive(Resource)]
-struct ClientSocket {
+pub struct ClientSocket {
     socket: UdpSocket,
     serv_addy: SocketAddr,
 }
@@ -173,16 +172,7 @@ fn do_send_button(
     
 }
 
-//single player: no IP was entered, so feed the network only keys straight into the game
-fn local_input(keyboard_input: Res<ButtonInput<KeyCode>>, mut input: ResMut<ServerInput>) {
-    for (key, byte) in [(KeyCode::KeyB, b'B'), (KeyCode::KeyN, b'N'), (KeyCode::KeyM, b'M')] {
-        if keyboard_input.just_pressed(key) {
-            input.input = byte;
-        }
-    }
-}
-
-fn client_listener(
+pub fn client_listener(
     mut client: ResMut<ClientSocket>,
     mut status: Query<&mut Text, With<statusText>>,mut input: ResMut<ServerInput>
 ) {

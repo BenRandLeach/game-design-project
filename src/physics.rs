@@ -6,8 +6,10 @@ use crate::game::JustDropped;
 use crate::game::CurrentlyActive;
 use crate::server::ClientInput;
 use crate::server::stop_input;
+use crate::server::server_listener;
 use crate::client::ServerInput;
 use crate::client::stop_server_input;
+use crate::client::client_listener;
 use crate::side::Side;
 use crate::{GameState, WIN_H, WIN_W};
 use bevy::math::bounding::{Aabb2d, BoundingVolume, IntersectsVolume};
@@ -63,6 +65,9 @@ impl Plugin for PhysicsPlugin {
                 remove_lost_entities,
             )
                 .chain()
+                // Read this tick's network input, so every copy of it arrives before physics uses it
+                .after(server_listener)
+                .after(client_listener)
                 .run_if(in_state(GameState::Game)),
         );
     }
@@ -510,12 +515,16 @@ mut commands: Commands,keyboard_input: Res<ButtonInput<KeyCode>>,client_data: Re
 // Rotate current block being placed by 90 degrees (pi/2 radians)
 pub fn rotate_block(
     mut blocks: Query<&mut Transform, With<BeingPlaced>>,
-    keyboard: Res<ButtonInput<KeyCode>>,client_data: ResMut<ClientInput>,server_data:ResMut<ServerInput>,
+    client_data: ResMut<ClientInput>,server_data:ResMut<ServerInput>,
 ) {
-    if keyboard.just_pressed(KeyCode::KeyR) || client_data.input==b'R' || server_data.input==b'R' {
+    // Only the echo from the server rotates, every window gets exactly one of those. The local key and
+    // ClientInput are extra copies of the same press, and two quarter turns look like no rotation at all.
+    if client_data.input==b'R' {
+        stop_input(client_data);
+    }
+    if server_data.input==b'R' {
+        stop_server_input(server_data);
         if let Ok(mut transform) = blocks.single_mut() {
-            stop_input(client_data);
-            stop_server_input(server_data);
             transform.rotation *= Quat::from_rotation_z(std::f32::consts::FRAC_PI_2);
         }
     }
@@ -869,5 +878,51 @@ mod tests {
         let (mut world, mut schedule) = world_and_schedule();
         let (_, upper, _, _) = drop_on_block(&mut world, &mut schedule, 10.0, 600.0);
         assert!(world.get::<Transform>(upper).is_none_or(|t| t.translation.y < TOWER_BASE_Y + 60.0));
+    }
+
+    fn rotate_world(held_block: bool) -> (World, Schedule, Entity) {
+        let mut world = World::new();
+        world.init_resource::<ClientInput>();
+        world.init_resource::<ServerInput>();
+        let held = block(&mut world, Vec2::ZERO, Vec2::ZERO);
+        if held_block {
+            world.entity_mut(held).insert(BeingPlaced);
+        }
+        let mut schedule = Schedule::default();
+        schedule.add_systems(rotate_block);
+        (world, schedule, held)
+    }
+
+    #[test]
+    fn one_press_rotates_a_quarter_turn_on_the_host() {
+        let (mut world, mut schedule, held) = rotate_world(true);
+        // The host gets the same press through both channels, sometimes a tick apart
+        world.resource_mut::<ClientInput>().input = b'R';
+        schedule.run(&mut world);
+        world.resource_mut::<ServerInput>().input = b'R';
+        schedule.run(&mut world);
+        schedule.run(&mut world);
+        assert!((angle(&world, held) - std::f32::consts::FRAC_PI_2).abs() < 0.01, "angle {}", angle(&world, held));
+    }
+
+    #[test]
+    fn one_press_rotates_a_quarter_turn_when_both_channels_arrive_together() {
+        let (mut world, mut schedule, held) = rotate_world(true);
+        world.resource_mut::<ClientInput>().input = b'R';
+        world.resource_mut::<ServerInput>().input = b'R';
+        schedule.run(&mut world);
+        schedule.run(&mut world);
+        assert!((angle(&world, held) - std::f32::consts::FRAC_PI_2).abs() < 0.01, "angle {}", angle(&world, held));
+    }
+
+    #[test]
+    fn rotate_with_no_held_block_does_not_carry_over() {
+        let (mut world, mut schedule, held) = rotate_world(false);
+        world.resource_mut::<ClientInput>().input = b'R';
+        world.resource_mut::<ServerInput>().input = b'R';
+        schedule.run(&mut world);
+        world.entity_mut(held).insert(BeingPlaced);
+        schedule.run(&mut world);
+        assert!(angle(&world, held).abs() < 0.01, "stale R rotated the next block");
     }
 }

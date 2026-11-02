@@ -1,7 +1,6 @@
 Controls:
 
 On home screen left click to go to game.
-For single player, click without entering an IP.
 You can spawn a block with B. When block is spawning can move with a and d.
 Spawn slingshot with n launch rock with m.
 Rotate blocks with R.
