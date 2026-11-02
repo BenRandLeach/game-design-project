@@ -5,6 +5,7 @@ use std::time::Duration;
 */
 const SLIDE_SIZE: Vec2 = Vec2::new(1280.0, 720.0);
 
+use crate::physics::AngularVelocity;
 use crate::server::ClientInput;
 use crate::server::stop_input;
 use crate::client::ServerInput;
@@ -155,6 +156,7 @@ fn spawn_block(mut commands: Commands,
         // NewEntity,
         BeingPlaced,
         Velocity(Vec2::new(0.,0.)),
+        AngularVelocity(0.),
         local_side.0,
         Transform::from_xyz(local_side.base_center(), 275., 1.),
 )).id();
@@ -181,6 +183,7 @@ fn spawn_slingshot(
             },
             JustDropped,
             Velocity::default(), 
+            AngularVelocity(0.),
             local_side.0,
             Transform::from_xyz(local_side.base_center(), 275., 2.),)).id();
             stop_input(client_data);
@@ -217,6 +220,7 @@ fn launch_cannonball(
                 fcoeff: 0.75,
                 },
                 Velocity(launch_vel),
+                AngularVelocity(0.),
                 Transform::from_translation(position), 
             ));
            }

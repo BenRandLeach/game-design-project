@@ -1,4 +1,3 @@
-use crate::game::NewEntity;
 use crate::game::Block;
 use crate::game::Slingshot;
 use crate::game::Ammo;
@@ -38,6 +37,9 @@ pub struct Obb{    // Obb object
 #[derive(Component, Deref, DerefMut, Default)]
 pub struct Velocity(pub Vec2);
 
+#[derive(Component, Default)]
+pub struct AngularVelocity(pub f32); // in rad / s
+
 pub struct PhysicsPlugin;
 impl Plugin for PhysicsPlugin {
     fn build(&self, app: &mut App) {
@@ -49,7 +51,6 @@ impl Plugin for PhysicsPlugin {
                 integrate_velocity,
                 check_obb_collisions,
                 resolve_ground_collision,
-                //resolve_block_collision,
                 bound_placement,
                 rotate_block,
                 apply_ground_friction,
@@ -96,7 +97,33 @@ pub fn interval_overlap(
     ntv2: (f32, f32)
 ) -> f32 { // returns penetration depth
     ntv1.1.min(ntv2.1) - ntv1.0.max(ntv2.0)  // min(max1, max2) - max(min1, min2) where ntv1 = (min1,max1)   (minimum)
-}                                                                                    // ntv2 = (min2,max2)   (overlap)
+}                                                                                // ntv2 = (min2,max2)   (overlap)
+
+fn block_inertia(mass: f32, width: f32, height: f32) -> f32 {
+    mass * (width * width + height * height) / 3.0
+}
+
+fn corners(o: &Obb) -> [Vec2; 4] {
+    let (u, v) = (o.axes[0] * o.half_dims.x, o.axes[1] * o.half_dims.y);
+    [o.center + u + v, o.center + u - v, o.center - u + v, o.center - u - v]
+}
+
+fn inside(o: &Obb, p: Vec2) -> bool {
+    let d = p - o.center;
+    d.dot(o.axes[0]).abs() <= o.half_dims.x 
+        && d.dot(o.axes[1]).abs() <= o.half_dims.y
+}
+
+fn contact_point(a: &Obb, b: &Obb) -> Vec2 {
+    let pts: Vec<Vec2> = corners(a).into_iter().filter(|p| inside(b, *p))
+        .chain(corners(b).into_iter().filter(|p| inside(a, *p)))
+        .collect();
+    if pts.is_empty() {
+        (a.center + b.center) * 0.5 
+    } else {
+        pts.iter().sum::<Vec2>() / pts.len() as f32
+    }
+}
 
 // Finds if there is a collision using obbs
 pub fn obb_collision(
@@ -146,15 +173,16 @@ pub fn obb_collision(
 fn integrate_velocity(
     time: Res<Time>, 
     mut bodies: Query<
-        (&mut Transform, &mut Velocity), 
+        (&mut Transform, &mut Velocity, &mut AngularVelocity), 
         (With<Block>, Without<BeingPlaced>),
     >,
 ) {
     let dt = time.delta_secs();
-    for (mut transform, mut velocity) in &mut bodies {
+    for (mut transform, mut velocity, ang_vel) in &mut bodies {
         velocity.y += GRAVITY * dt;
         transform.translation.x += velocity.x * dt;
         transform.translation.y += velocity.y * dt;
+        transform.rotate_z(ang_vel.0 * dt);
     }
 }
 
@@ -376,58 +404,108 @@ pub fn resolve_block_collision(
 
 // Constantly check all pairs of blocks for collisions, and resolve them if there is one
 pub fn check_obb_collisions(
-    mut blocks: Query<(Entity, &Block, &mut Transform, &mut Velocity)>,
+    mut blocks: Query<(Entity, &Block, &mut Transform, &mut Velocity, &mut AngularVelocity)>,
     slingshots: Query<(), With<Slingshot>>,
     cannonballs: Query<(), With<Ammo>>,
 ) {
+
+    let half_size = |e: Entity| -> (f32, f32) {
+        if slingshots.contains(e) {
+            (15.0, 15.0)
+        } else if cannonballs.contains(e) {
+            (12.0, 12.0)
+        } else {
+            (BLOCK_HALF_WIDTH, BLOCK_HALF_HEIGHT)
+        }
+    };
+
     let mut combinations = blocks.iter_combinations_mut();
     
-    while let Some([(entity1, block1, mut transform1, mut velocity1),
-                    (entity2, block2, mut transform2, mut velocity2)]) = combinations.fetch_next() {
-        let (width1, height1) = 
-        if slingshots.contains(entity1) {
-            (15.0, 15.0)
-        } 
-        else if cannonballs.contains(entity1){
-            (10.0, 10.0)
-        }
-        else{
-            (BLOCK_HALF_WIDTH, BLOCK_HALF_HEIGHT)
-        };
-        let (width2, height2) =
-        if slingshots.contains(entity2) {
-            (15.0, 15.0)
-        }
-        else if cannonballs.contains(entity2){
-            (12.0, 12.0)
-        }
-        else {
-            (BLOCK_HALF_WIDTH, BLOCK_HALF_HEIGHT)
-        };
+    while let Some([(entity1, block1, mut transform1, mut velocity1, mut ang_vel1),
+                    (entity2, block2, mut transform2, mut velocity2, mut ang_vel2)]) = combinations.fetch_next() {
+        
+        let(width1, height1) = half_size(entity1);
+        let(width2, height2) = half_size(entity2);      
+        
+        // let (width1, height1) = 
+        //     if slingshots.contains(entity1) {
+        //         (15.0, 15.0)
+        //     } 
+        //     else if cannonballs.contains(entity1){
+        //         (10.0, 10.0)
+        //     }
+        //     else{
+        //         (BLOCK_HALF_WIDTH, BLOCK_HALF_HEIGHT)
+        //     };
+        //     let (width2, height2) =
+        //     if slingshots.contains(entity2) {
+        //         (15.0, 15.0)
+        //     }
+        //     else if cannonballs.contains(entity2){
+        //         (12.0, 12.0)
+        //     }
+        //     else {
+        //         (BLOCK_HALF_WIDTH, BLOCK_HALF_HEIGHT)
+        //     };
+
         let (penetration, normal) = obb_collision(
-            &transform1,
-            &transform2,
-            width1,
-            width2,
-            height1,
-            height2
+            &transform1, &transform2, width1, width2, height1, height2,
         );
 
         if penetration > 0.0 {
-            let relative_velocity = velocity2.0 - velocity1.0;
-            let velocity_along_normal = relative_velocity.dot(normal);
-            let impulse_num = -1.0 * ((1.0 + RESTITUTION)* velocity_along_normal);
-            let impulse_den = (1.0/block1.mass) + (1.0/block2.mass);
-            let impulse = impulse_num/impulse_den;
-            let impulse_vec = impulse * normal;
+            // let relative_velocity = velocity2.0 - velocity1.0;
+            // let velocity_along_normal = relative_velocity.dot(normal);
+            // let impulse_num = -1.0 * ((1.0 + RESTITUTION)* velocity_along_normal);
+            // let impulse_den = (1.0/block1.mass) + (1.0/block2.mass);
+            // let impulse = impulse_num/impulse_den;
+            // let impulse_vec = impulse * normal;
 
-            if(velocity_along_normal < 0.0){
-                velocity1.0 -= impulse_vec / block1.mass;
-                velocity2.0 += impulse_vec / block2.mass; 
+            let obb1 = create_obb(&transform1, width1, height1);
+            let obb2 = create_obb(&transform2, width2, height2);
+            let contact = contact_point(&obb1, &obb2);
+
+            let c1 = contact - transform1.translation.truncate();
+            let c2 = contact - transform2.translation.truncate();
+
+            let mass1 = block1.mass;
+            let mass2 = block2.mass;
+            let inertia1 = block_inertia(mass1, width1, height1);
+            let inertia2 = block_inertia(mass2, width2, height2);
+
+
+            let vcontact1 = velocity1.0 + ang_vel1.0 * Vec2::new(-c1.y, c1.x);
+            let vcontact2 = velocity2.0 + ang_vel2.0 * Vec2::new(-c2.y, c2.x);
+            let vcontactn = (vcontact2 - vcontact1).dot(normal);
+
+            if vcontactn < 0.0 {
+                let c1n = c1.perp_dot(normal);
+                let c2n = c2.perp_dot(normal);
+                let inv_mass_sum = 1.0 / mass1 + 1.0 / mass2
+                    + (c1n * c1n) / inertia1
+                    + (c2n * c2n) / inertia2;
+
+                let j = -(1.0 + RESTITUTION) * vcontactn / inv_mass_sum;
+                let impulse = j * normal;
+
+                velocity1.0 -= impulse / mass1;
+                velocity2.0 += impulse / mass2;
+                ang_vel1.0 -= c1.perp_dot(impulse) / inertia1;
+                ang_vel2.0 += c2.perp_dot(impulse) / inertia2;
             }
 
-            transform1.translation -= (normal * penetration / 2.0).extend(0.0);
-            transform2.translation += (normal * penetration / 2.0).extend(0.0);
+            // if(velocity_along_normal < 0.0){
+            //     velocity1.0 -= impulse_vec / block1.mass;
+            //     velocity2.0 += impulse_vec / block2.mass;
+            // }
+
+            let inv1 = 1.0 / mass1;
+            let inv2 = 1.0 / mass2;
+            let total = inv1 + inv2;
+            transform1.translation -= (normal * penetration * (inv1 / total)).extend(0.0);
+            transform2.translation += (normal * penetration * (inv2 / total)).extend(0.0);
+
+            // transform1.translation -= (normal * penetration / 2.0).extend(0.0);
+            // transform2.translation += (normal * penetration / 2.0).extend(0.0);
         }
     }   
 }
