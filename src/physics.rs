@@ -110,8 +110,10 @@ pub fn interval_overlap(
     ntv1.1.min(ntv2.1) - ntv1.0.max(ntv2.0) // min(max1, max2) - max(min1, min2) where ntv1 = (min1,max1)   (minimum)
 } // ntv2 = (min2,max2)   (overlap)
 
+// Inertia of Rectangle Across y axis = m * (w^3 + h) / 3.0
 fn block_inertia(mass: f32, width: f32, height: f32) -> f32 {
     mass * (width * width + height * height) / 3.0
+    // mass * (width * width * width + height) / 3.0
 }
 
 fn corners(o: &Obb) -> [Vec2; 4] {
