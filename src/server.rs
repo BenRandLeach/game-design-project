@@ -17,6 +17,7 @@ pub struct Player2Address(pub Option<SocketAddr>);
 #[derive(Resource, Default)]
 pub struct ClientInput {
     pub input: u8,
+    pub player: u8
 }
 
 #[derive(Resource, Default)]
@@ -127,6 +128,7 @@ fn setup_server_socket(mut commands: Commands) {
 
 pub fn stop_input(mut input: ResMut<ClientInput>) {
     input.input = b'0';
+    input.player = 0;
 }
 
 pub fn server_listener(
@@ -144,6 +146,14 @@ pub fn server_listener(
                 //println!("server got {n} bytes from {from}: {:?}", &buf[..n]);
                 // echo back to whoever sent it
                 input.input = buf[0];
+                input.player = if player1.0 == Some(from){
+                    1
+                }
+                else if player2.0 == Some(from){
+                    2
+                }else{
+                    0
+                };
                 if let Some(addr) = player1.0 {
                     if let Err(e) = server.socket.send_to(&buf[..n], addr) {
                         println!("server couldnt reply: {e}");
