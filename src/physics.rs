@@ -110,10 +110,8 @@ pub fn interval_overlap(
     ntv1.1.min(ntv2.1) - ntv1.0.max(ntv2.0) // min(max1, max2) - max(min1, min2) where ntv1 = (min1,max1)   (minimum)
 } // ntv2 = (min2,max2)   (overlap)
 
-// Inertia of Rectangle Across y axis = m * (w^3 + h) / 3.0
 fn block_inertia(mass: f32, width: f32, height: f32) -> f32 {
     mass * (width * width + height * height) / 3.0
-    // mass * (width * width * width + height) / 3.0
 }
 
 fn corners(o: &Obb) -> [Vec2; 4] {
@@ -576,7 +574,7 @@ pub fn bound_placement(
             velocity.x = velocity.x.abs();
         }
 
-        if keyboard_input.pressed(KeyCode::KeyS)
+        if keyboard_input.just_pressed(KeyCode::KeyS)
             || client_data.input == b'S'
             || server_data.input == b'S'
         {
@@ -596,10 +594,11 @@ pub fn bound_placement(
 // Rotate current block being placed by 90 degrees (pi/2 radians)
 pub fn rotate_block(
     mut blocks: Query<&mut Transform, With<BeingPlaced>>,
+    input: Res<ButtonInput<KeyCode>>,
     mut client_data: ResMut<ClientInput>,
     mut server_data: ResMut<ServerInput>,
 ) {
-    let rotate = client_data.input == b'R' || server_data.input == b'R';
+    let rotate = client_data.input == b'R' || server_data.input == b'R' || input.just_pressed(KeyCode::KeyR);
     if client_data.input == b'R' {
         client_data.input = b'0';
     }
@@ -624,7 +623,7 @@ pub fn fast_fall(
     const ACCEL_INCREASE: f32 = 2000.;
     const MAX_FALL_SPEED: f32 = 10000.;
 
-    if !(keyboard.pressed(KeyCode::KeyS) || client_data.input == b'S' || server_data.input == b'S')
+    if !(keyboard.just_pressed(KeyCode::KeyS) || client_data.input == b'S' || server_data.input == b'S')
     {
         return;
     } else {
