@@ -1,4 +1,5 @@
 use crate::GameState;
+use crate::server::server_listener;
 use bevy::prelude::*;
 use bevy::{color::palettes::css::DARK_BLUE, window::WindowEvent::PanGesture};
 use std::{
@@ -18,18 +19,20 @@ impl Plugin for ClientPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(GameState::Game), network_ui)
             .add_systems(
-                FixedUpdate,
+                // Not FixedUpdate: a frame can run 0 or 2 ticks, which drops or doubles key presses
+                Update,
                 do_send_button.run_if(resource_exists::<ClientSocket>),
             )
             .add_systems(
                 FixedUpdate,
-                client_listener.run_if(resource_exists::<ClientSocket>),
+                // After the server, so the host gets its own echo on the same tick
+                client_listener.after(server_listener).run_if(resource_exists::<ClientSocket>),
             );
     }
 }
 
 #[derive(Resource)]
-struct ClientSocket {
+pub struct ClientSocket {
     socket: UdpSocket,
     serv_addy: SocketAddr,
 }
@@ -169,7 +172,7 @@ fn do_send_button(
     
 }
 
-fn client_listener(
+pub fn client_listener(
     mut client: ResMut<ClientSocket>,
     mut status: Query<&mut Text, With<statusText>>,mut input: ResMut<ServerInput>
 ) {

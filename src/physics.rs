@@ -15,6 +15,7 @@ use bevy::input::mouse::MouseButton::Right;
 use bevy::math::bounding::{Aabb2d, BoundingVolume, IntersectsVolume};
 use bevy::prelude::*;
 use bevy::time::Fixed;
+use std::collections::HashMap;
 
 const GRAVITY: f32 = -980.0;
 const RESTITUTION: f32 = 1.0; // Between 0.0 - 1.0 , decides elasticity in collisions, 
@@ -39,6 +40,9 @@ pub struct Obb {
 #[derive(Component, Deref, DerefMut, Default)]
 pub struct Velocity(pub Vec2);
 
+#[derive(Component, Default)]
+pub struct AngularVelocity(pub f32); // in rad / s
+
 pub struct PhysicsPlugin;
 impl Plugin for PhysicsPlugin {
     fn build(&self, app: &mut App) {
@@ -47,13 +51,9 @@ impl Plugin for PhysicsPlugin {
             FixedUpdate,
             (
                 fast_fall,
-                integrate_velocity,
-                check_obb_collisions,
-                resolve_ground_collision,
-                //resolve_block_collision,
+                simulate,
                 bound_placement,
                 rotate_block,
-                apply_ground_friction,
                 remove_lost_entities,
             )
                 .chain()
@@ -155,7 +155,27 @@ fn integrate_velocity(
     }
 }
 
-fn apply_ground_friction(
+fn solve_positions(overlaps: &[Overlap], bodies: &mut [Body]) {
+    for overlap in overlaps {
+        let inv_a = overlap.a.map_or(0.0, |a| bodies[a].inv_mass);
+        let inv_b = bodies[overlap.b].inv_mass;
+        let push = overlap.normal * (overlap.depth - POSITION_SLOP).max(0.0) * POSITION_CORRECTION
+            / (inv_a + inv_b);
+        if let Some(a) = overlap.a {
+            bodies[a].transform.translation -= (push * inv_a).extend(0.0);
+        }
+        bodies[overlap.b].transform.translation += (push * inv_b).extend(0.0);
+    }
+}
+
+// Semi-implicit Euler: update velocity first, then move using the new velocity.
+fn integrate_velocity(body: &mut Body, dt: f32) {
+    body.velocity.y += GRAVITY * dt;
+    body.transform.translation += (body.velocity * dt).extend(0.0);
+    body.transform.rotate_z(body.ang_vel * dt);
+}
+
+fn simulate(
     time: Res<Time>,
     mut bodies: Query<(&mut Velocity, &Block), (With<Block>, Without<BeingPlaced>)>,
 ) {
@@ -290,8 +310,6 @@ pub fn rotate_block(
         || server_data.input == b'R'
     {
         if let Ok(mut transform) = blocks.single_mut() {
-            stop_input(client_data);
-            stop_server_input(server_data);
             transform.rotation *= Quat::from_rotation_z(std::f32::consts::FRAC_PI_2);
         }
     }

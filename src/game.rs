@@ -9,16 +9,17 @@ use crate::client::ServerInput;
 use crate::client::stop_server_input;
 use crate::physics::Velocity;
 use crate::server::ClientInput;
-use crate::server::IsHost;
 use crate::server::stop_input;
 use crate::side::LocalSide;
-use crate::{GameState, PROGRESS_FRAME, PROGRESS_HEIGHT, PROGRESS_LENGTH, WIN_H};
 
 const GROUND_Y: f32 = -WIN_H / 2.0;
 const TOWER_BASE_Y: f32 = (-WIN_H / 2.0) + 20.0;
 
 const BLOCK_WIDTH: f32 = 16.0;
 const BLOCK_HEIGHT: f32 = 48.0;
+
+const LAUNCH_SPEED: Vec2 = Vec2::new(800.0, 500.0);
+const MUZZLE_OFFSET: f32 = 36.0; // Past the slingshot's hitbox, or the shot collides with its own slingshot
 
 #[derive(Component)]
 pub struct Block {
@@ -168,7 +169,6 @@ fn spawn_block(
                     fcoeff: 0.25,
                 },
                 // NewEntity,
-                BlockId(id),
                 BeingPlaced,
                 Velocity(Vec2::new(0., 0.)),
                 local_side.0,
@@ -216,7 +216,7 @@ fn spawn_slingshot(
 fn launch_cannonball(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    slingshots: Query<&Transform, With<Slingshot>>,
+    slingshots: Query<(&Transform, &Side), With<Slingshot>>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     client_data: ResMut<ClientInput>,
     server_data: ResMut<ServerInput>,

@@ -47,7 +47,7 @@ impl Plugin for ServerPlugin {
     }
 }
 #[derive(Resource)]
-struct ServerSocket {
+pub struct ServerSocket {
     socket: UdpSocket,
     client_addy: Option<SocketAddr>,
 }
