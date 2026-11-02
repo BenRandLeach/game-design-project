@@ -10,6 +10,7 @@ const SLIDE_SIZE: Vec2 = Vec2::new(1280.0, 720.0);
 
 use crate::client::ServerInput;
 use crate::client::stop_server_input;
+use crate::physics::AngularVelocity;
 use crate::physics::Velocity;
 use crate::server::ClientInput;
 use crate::server::stop_input;
@@ -170,8 +171,10 @@ fn spawn_block(
                     fcoeff: 0.25,
                 },
                 // NewEntity,
+                BlockId(id),
                 BeingPlaced,
                 Velocity(Vec2::new(0., 0.)),
+                AngularVelocity(0.),
                 local_side.0,
                 Transform::from_xyz(local_side.base_center(), 275., 1.),
             ))
@@ -205,6 +208,7 @@ fn spawn_slingshot(
                 },
                 JustDropped,
                 Velocity::default(),
+                AngularVelocity(0.),
                 local_side.0,
                 Transform::from_xyz(local_side.base_center(), 275., 2.),
             ))
@@ -224,10 +228,10 @@ fn launch_cannonball(
     local_side: Res<LocalSide>,
 ) {
     if server_data.input == b'M' || client_data.input == b'M' {
-        let launch_vel = Vec2::new(800.0, 500.0);
-
-        for transform in &slingshots {
-            let position = transform.translation;
+        for (transform, side) in &slingshots {
+            let direction = if *side == Side::Left { 1.0 } else { -1.0 };
+            let launch_vel = Vec2::new(LAUNCH_SPEED.x * direction, LAUNCH_SPEED.y);
+            let position = transform.translation + Vec3::X * MUZZLE_OFFSET * direction;
             commands.spawn((
                 Sprite {
                     image: asset_server.load("cannonball2.png"),
@@ -242,13 +246,12 @@ fn launch_cannonball(
                     fcoeff: 0.75,
                 },
                 Velocity(launch_vel),
+                AngularVelocity(0.),
                 Transform::from_translation(position),
             ));
         }
-        if server_data.input == b'M' || client_data.input == b'M' {
-            stop_input(client_data);
-            stop_server_input(server_data);
-        }
+        stop_input(client_data);
+        stop_server_input(server_data);
     }
 }
 
