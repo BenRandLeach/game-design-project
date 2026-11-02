@@ -12,13 +12,16 @@ use crate::client::ServerInput;
 use crate::client::stop_server_input;
 use crate::{GameState, PROGRESS_FRAME, PROGRESS_HEIGHT, PROGRESS_LENGTH, WIN_H};
 use crate::physics::Velocity;
-use crate::side::LocalSide;
+use crate::side::{LocalSide, Side};
 
 const GROUND_Y: f32 = -WIN_H / 2.0;
 const TOWER_BASE_Y: f32 = (-WIN_H / 2.0) + 20.0;
 
 const BLOCK_WIDTH: f32 = 16.0;
 const BLOCK_HEIGHT: f32 = 48.0;
+
+const LAUNCH_SPEED: Vec2 = Vec2::new(800.0, 500.0);
+const MUZZLE_OFFSET: f32 = 36.0; // Past the slingshot's hitbox, or the shot collides with its own slingshot
 
 #[derive(Component)]
 pub struct Block {
@@ -173,7 +176,7 @@ fn spawn_slingshot(
     local_side: Res<LocalSide>,
 ) {
     if server_data.input==b'N' || client_data.input==b'N'{
-        let slingshot = commands.spawn((Sprite {image: asset_server.load("Cannon2.png"), ..default()}, 
+        let slingshot = commands.spawn((Sprite {image: asset_server.load("Cannon2.png"), flip_x: local_side.0 == Side::Right, ..default()}, 
             Slingshot,
             Block {
                 mass: 1.0,
@@ -194,7 +197,7 @@ fn spawn_slingshot(
 fn launch_cannonball(
     mut commands: Commands, 
     asset_server: Res<AssetServer>,
-    slingshots: Query<&Transform, With<Slingshot>>,
+    slingshots: Query<(&Transform, &Side), With<Slingshot>>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     client_data: ResMut<ClientInput>,
     server_data:ResMut<ServerInput>,
@@ -202,10 +205,11 @@ fn launch_cannonball(
 ) {
 
         if server_data.input==b'M'|| client_data.input==b'M'{
-           let launch_vel = Vec2::new(800.0, 500.0);
-
-           for transform in &slingshots {
-                let position = transform.translation;
+           for (transform, side) in &slingshots {
+                // Always fire at the other tower
+                let direction = if *side == Side::Left { 1.0 } else { -1.0 };
+                let launch_vel = Vec2::new(LAUNCH_SPEED.x * direction, LAUNCH_SPEED.y);
+                let position = transform.translation + Vec3::X * MUZZLE_OFFSET * direction;
                 commands.spawn((
                 Sprite {
                     image: asset_server.load("cannonball2.png"), 

@@ -24,6 +24,10 @@ impl Plugin for ClientPlugin {
             .add_systems(
                 FixedUpdate,
                 client_listener.run_if(resource_exists::<ClientSocket>),
+            )
+            .add_systems(
+                Update,
+                local_input.run_if(in_state(GameState::Game).and_then(not(resource_exists::<ClientSocket>))),
             );
     }
 }
@@ -167,6 +171,15 @@ fn do_send_button(
     }
     
     
+}
+
+//single player: no IP was entered, so feed the network only keys straight into the game
+fn local_input(keyboard_input: Res<ButtonInput<KeyCode>>, mut input: ResMut<ServerInput>) {
+    for (key, byte) in [(KeyCode::KeyB, b'B'), (KeyCode::KeyN, b'N'), (KeyCode::KeyM, b'M')] {
+        if keyboard_input.just_pressed(key) {
+            input.input = byte;
+        }
+    }
 }
 
 fn client_listener(
