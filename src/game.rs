@@ -15,7 +15,10 @@ use crate::physics::Velocity;
 use crate::server::ClientInput;
 use crate::server::stop_input;
 use crate::side::LocalSide;
+use crate::server::{Player1Money, Player2Money};
 
+const STARTING_MONEY: u64 = 100;
+const BLOCK_COST: u64 = 1;
 const GROUND_Y: f32 = -WIN_H / 2.0;
 const TOWER_BASE_Y: f32 = (-WIN_H / 2.0) + 20.0;
 
@@ -66,19 +69,28 @@ pub struct NextBlockId(pub u32);
 #[derive(Component, Clone, Copy)]
 pub struct BlockId(pub u32);
 
+#[derive(Component)]
+struct MoneyUi;
+
+#[derive(Component)]
+struct MoneyText(u8);
+
 pub struct GamePlugin;
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, load_game)
             .add_systems(OnEnter(GameState::Game), setup_game)
+            .add_systems(OnEnter(GameState::Game), (reset_money, spawn_money_ui))
             .add_systems(Update, game_mess_listener)
             .add_systems(Update, swap_to_credits.run_if(in_state(GameState::Game)))
+            .add_systems(Update, update_money_ui.run_if(in_state(GameState::Game)))
             .add_systems(
                 Update,
                 (spawn_block, spawn_slingshot, launch_cannonball)
                     .run_if(in_state(GameState::Game))
                     .run_if(resource_exists::<IsHost>),
             )
+            .add_systems(OnExit(GameState::Game), crate::startscreen::despawn_with::<MoneyUi>)
             //.add_systems(Update, move_blocks.run_if(in_state(GameState::Game)))
             //.add_systems(Update, simulate_lag.run_if(in_state(GameState::Game)))
             .insert_resource(CurrentlyActive::default())
@@ -90,7 +102,51 @@ fn simulate_lag() {
     thread::sleep(Duration::from_millis(200));
 }
 */
-
+fn spawn_money_ui(mut commands: Commands, asset_server: Res<AssetServer>){
+    let coin = asset_server.load("Coin.png");
+    for (player, left_side)in[(1u8, true), (2u8, false)]{
+        commands
+        .spawn((
+            Node {
+                position_type: PositionType::Absolute,
+                top: px(50),
+                left: if left_side{px(16)} else{auto()},
+                right: if left_side{auto()} else{px(16)},
+                align_items: AlignItems::Center,
+                column_gap: px(8),
+                ..default()
+            },
+            MoneyUi,
+            ))
+            .with_children(|parent|{
+                parent.spawn((
+                    ImageNode::new(coin.clone()),
+                    Node{
+                        width:px(32),
+                        height: px(32),
+                        ..default()
+                    },
+                ));
+                parent.spawn((
+                    Text::new(STARTING_MONEY.to_string()),
+                    TextFont{
+                        font_size: FontSize::Px(28.0),
+                        ..default()
+                    },
+                    MoneyText(player),
+                ));
+            });
+    }
+}
+fn update_money_ui(p1: Res<Player1Money>, p2: Res<Player2Money>, mut texts: Query<(&mut Text, &MoneyText)>,){
+    if !p1.is_changed() && !p2.is_changed(){
+        return;
+    }
+    for(mut text, who) in &mut texts{
+        let amount = if who.0 == 1{p1.money} else{ p2.money};
+        text.0= amount.to_string();
+    }
+}
 fn game_mess_listener(
     mut game_mess: MessageReader<Game>,
     mut next_state: ResMut<NextState<GameState>>,
@@ -143,13 +199,31 @@ fn spawn_block(
     client_data: ResMut<ClientInput>,
     server_data: ResMut<ServerInput>,
     mut next_id: ResMut<NextBlockId>,
+    mut p1_money: ResMut<Player1Money>,
+    mut p2_money: ResMut<Player2Money>,
 ) {
+
+
     if being_placed.iter().count() > 0 {
         return;
     }
-    if server_data.input == b'B' || client_data.input == b'B' || keyboard_input.just_pressed(KeyCode::KeyB) {
+    if server_data.input != b'B' && client_data.input != b'B' {
+        return;
+    }
+        let player = client_data.player;
         stop_input(client_data);
         stop_server_input(server_data);
+
+        let wallet = match player {
+            1 => &mut p1_money.money,
+            2=> &mut p2_money.money,
+            _ => return,
+            
+        };
+        if *wallet < BLOCK_COST{
+            return;
+        }
+        *wallet -= BLOCK_COST;
         if let Some(active_entity) = currently_active.0 {
             commands.entity(active_entity).remove::<NewEntity>();
         }
@@ -181,7 +255,7 @@ fn spawn_block(
             .id();
         currently_active.0 = Some(entity);
     }
-}
+
 
 fn spawn_slingshot(
     mut commands: Commands,
@@ -192,7 +266,7 @@ fn spawn_slingshot(
     server_data: ResMut<ServerInput>,
     local_side: Res<LocalSide>,
 ) {
-    if server_data.input == b'N' || client_data.input == b'N' || keyboard_input.just_pressed(KeyCode::KeyN) {
+    if server_data.input == b'N' || client_data.input == b'N' {
         let slingshot = commands
             .spawn((
                 Sprite {
@@ -227,7 +301,7 @@ fn launch_cannonball(
     server_data: ResMut<ServerInput>,
     local_side: Res<LocalSide>,
 ) {
-    if server_data.input == b'M' || client_data.input == b'M' || keyboard_input.just_pressed(KeyCode::KeyM) {
+    if server_data.input == b'M' || client_data.input == b'M' {
         for (transform, side) in &slingshots {
             let direction = if *side == Side::Left { 1.0 } else { -1.0 };
             let launch_vel = Vec2::new(LAUNCH_SPEED.x * direction, LAUNCH_SPEED.y);
@@ -264,6 +338,10 @@ fn swap_to_credits(
         // also need to clear all blocks here!
         next_state.set(GameState::Credits);
     }
+}
+fn reset_money(mut p1: ResMut<Player1Money>, mut p2: ResMut<Player2Money>){
+    p1.money = STARTING_MONEY;
+    p2.money = STARTING_MONEY;
 }
 
 fn setup_game(
