@@ -585,12 +585,13 @@ pub fn bound_placement(
             commands.entity(entity).insert(JustDropped);
         }
     }
-    if (client_data.input == b'S') {
+    if (client_data.input == b'S') ||(client_data.input == b'A') || (client_data.input == b'D') {
         stop_input(client_data);
     }
-    if (server_data.input == b'S') {
+    if (server_data.input == b'S')||(server_data.input == b'A')||(server_data.input == b'D') {
         stop_server_input(server_data);
     }
+    
 }
 
 // Rotate current block being placed by 90 degrees (pi/2 radians)
