@@ -7,7 +7,8 @@ use std::{
     net::{SocketAddr, UdpSocket},
 };
 pub struct ServerPlugin;
-
+use std::time::Duration;
+use bevy::time::common_conditions::on_timer;
 #[derive(Resource, Default)]
 pub struct Player1Address(pub Option<SocketAddr>);
 
@@ -34,7 +35,8 @@ pub struct IsHost;
 
 impl Plugin for ServerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, setup_server_socket)
+       // app.add_plugins(DefaultPlugins)
+            app.add_systems(Startup, setup_server_socket)
             // app.add_systems(Update, server_listener);
             .add_systems(
                 FixedUpdate,
@@ -45,6 +47,11 @@ impl Plugin for ServerPlugin {
                 FixedUpdate,
                 server_listener
                     .run_if(resource_exists::<ServerSocket>.and_then(check_if_players_exist)),
+            )
+            .add_systems(
+                FixedUpdate,
+                passive_money
+                    .run_if(resource_exists::<ServerSocket>.and_then(check_if_players_exist).and_then(on_timer(Duration::from_secs(5))))
             )
             .add_systems(
                 FixedUpdate,
@@ -59,6 +66,8 @@ impl Plugin for ServerPlugin {
             );
     }
 }
+
+
 #[derive(Resource)]
 pub struct ServerSocket {
     socket: UdpSocket,
@@ -71,6 +80,15 @@ impl ServerSocket {
             client_addy: None,
         }
     }
+}
+
+fn passive_money(
+    mut p1: ResMut<Player1Money>, 
+    mut p2: ResMut<Player2Money>,
+)
+{
+    *&mut p1.money=p1.money+1;
+    *&mut p2.money=p2.money+1;
 }
 
 fn check_if_players_exist(
