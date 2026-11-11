@@ -66,6 +66,8 @@ fn main() {
         .init_resource::<client::ServerInput>()
         .init_resource::<server::Player1Money>()
         .init_resource::<server::Player2Money>()
+        .init_resource::<client::Client1Money>()
+        .init_resource::<client::Client2Money>()
         .init_resource::<server::Player1Address>()
         .init_resource::<server::Player2Address>()
         .init_resource::<game::NextBlockId>()

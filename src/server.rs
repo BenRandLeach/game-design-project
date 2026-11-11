@@ -48,6 +48,11 @@ impl Plugin for ServerPlugin {
             )
             .add_systems(
                 FixedUpdate,
+                do_send_money
+                    .run_if(resource_exists::<ServerSocket>.and_then(check_if_players_exist))
+            )
+            .add_systems(
+                FixedUpdate,
                 do_send_blockpos
                     .after(crate::physics::simulate)
                     .run_if(resource_exists::<ServerSocket>.and_then(check_if_players_exist)),
@@ -173,6 +178,39 @@ pub fn server_listener(
         }
     }
 }
+
+fn do_send_money(server: Res<ServerSocket>,
+    player1: Res<Player1Address>,
+    player2: Res<Player2Address>,
+    p1: Res<Player1Money>, 
+    p2: Res<Player2Money>, )
+    {
+        let msg= format!("{},{},{}","$",1,p1.money);
+        let bytes = msg.as_bytes();
+        if let Some(addr) = player1.0 {
+            if let Err(e) = server.socket.send_to(bytes, addr) {
+                println!("server couldnt p1 money to player 1: {e}");
+            }
+        }
+        if let Some(addr2) = player2.0 {
+            if let Err(e) = server.socket.send_to(bytes, addr2) {
+                println!("server couldnt send p1 money to player 2: {e}");
+            }
+        }
+        let msg= format!("{},{},{}","$",2,p2.money);
+        let bytes = msg.as_bytes();
+        if let Some(addr) = player1.0 {
+            if let Err(e) = server.socket.send_to(bytes, addr) {
+                println!("server couldnt send p2 money to player 1: {e}");
+            }
+        }
+        if let Some(addr2) = player2.0 {
+            if let Err(e) = server.socket.send_to(bytes, addr2) {
+                println!("server couldnt send p2 money to player 2: {e}");
+            }
+        }
+    }
+
 fn do_send_blockpos(
     server: Res<ServerSocket>,
     player1: Res<Player1Address>,

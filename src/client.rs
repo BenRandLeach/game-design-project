@@ -1,4 +1,5 @@
 use crate::GameState;
+
 use crate::game::BlockId;
 use crate::server::server_listener;
 use bevy::prelude::*;
@@ -11,6 +12,15 @@ use std::{
 #[derive(Resource, Default)]
 pub struct ServerInput {
     pub input: u8,
+}
+#[derive(Resource, Default)]
+pub struct Client1Money {
+    pub money: u64,
+}
+
+#[derive(Resource, Default)]
+pub struct Client2Money {
+    pub money: u64,
 }
 
 pub struct ClientPlugin;
@@ -31,6 +41,9 @@ impl Plugin for ClientPlugin {
             );
     }
 }
+
+#[derive(Component)]
+struct MoneyText(u8);
 
 #[derive(Resource)]
 pub struct ClientSocket {
@@ -65,7 +78,10 @@ pub fn connect(commands: &mut Commands, text: &str) -> String {
     format!("Ready to talk to {serv_addy}")
 }
 //draws the send button and status line
-fn network_ui(mut commands: Commands, client: Option<Res<ClientSocket>>) {
+fn network_ui(mut commands: Commands, client: Option<Res<ClientSocket>>,mut p1: ResMut<Client1Money>, 
+    mut p2: ResMut<Client2Money>,) {
+    *&mut p1.money=100;
+    *&mut p2.money=100;
     let status_mess = match &client {
         Some(c) => format!("connected to {}", c.serv_addy),
         None => String::from("not connected"),
@@ -160,6 +176,9 @@ pub fn client_listener(
     mut input: ResMut<ServerInput>,
     asset_server: Res<AssetServer>,
     mut blocks: Query<(&BlockId, &mut Transform)>,
+    mut p1: ResMut<Client1Money>, 
+    mut p2: ResMut<Client2Money>,
+
 ) {
     let mut buf = [0u8; 1024];
     let mut spawned_this_call: Vec<u32> = Vec::new();
@@ -171,8 +190,33 @@ pub fn client_listener(
                     continue;
                 }
                 let first_byte = buf[0];
+                if first_byte == b'$'
+                {
+                    let text = String::from_utf8_lossy(&buf[..n]);
+                    let mut parts = text.split(',');
+                    let (Some(moneySign_s), Some(playerNum_s), Some(moneyAmount_s)) =
+                        (parts.next(), parts.next(), parts.next())
+                    else {
+                        continue;
+                    };
+                    let (Ok(moneySign), Ok(playerNum), Ok(moneyAmount)) = (
+                        moneySign_s.trim().parse::<char>(),
+                        playerNum_s.trim().parse::<u32>(),
+                        moneyAmount_s.trim().parse::<u64>(),
+                    ) else {
+                        continue;
+                    };
+                    if playerNum==1
+                    {
+                        *&mut p1.money=moneyAmount;
+                    }
+                    else
+                    {
+                        *&mut p2.money=moneyAmount;
+                    }
+                }
 
-                if first_byte.is_ascii_digit() {
+                else if first_byte.is_ascii_digit() {
                     let text = String::from_utf8_lossy(&buf[..n]);
                     let mut parts = text.split(',');
 

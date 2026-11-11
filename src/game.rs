@@ -8,6 +8,8 @@ use crate::side::Side;
 use crate::{GameState, WIN_H};
 const SLIDE_SIZE: Vec2 = Vec2::new(1280.0, 720.0);
 
+use crate::client::Client1Money;
+use crate::client::Client2Money;
 use crate::client::ServerInput;
 use crate::client::stop_server_input;
 use crate::physics::AngularVelocity;
@@ -138,10 +140,8 @@ fn spawn_money_ui(mut commands: Commands, asset_server: Res<AssetServer>){
             });
     }
 }
-fn update_money_ui(p1: Res<Player1Money>, p2: Res<Player2Money>, mut texts: Query<(&mut Text, &MoneyText)>,){
-    if !p1.is_changed() && !p2.is_changed(){
-        return;
-    }
+fn update_money_ui(p1: Res<Client1Money>, p2: Res<Client2Money>, mut texts: Query<(&mut Text, &MoneyText)>,){
+
     for(mut text, who) in &mut texts{
         let amount = if who.0 == 1{p1.money} else{ p2.money};
         text.0= amount.to_string();
