@@ -1,0 +1,84 @@
+use bevy::{prelude::*, window::PresentMode};
+
+mod client;
+mod credits;
+mod game;
+mod physics;
+mod server;
+mod side;
+mod startscreen;
+
+const TITLE: &str = "Tower Balance";
+const WIN_W: f32 = 1280.;
+const WIN_H: f32 = 720.;
+
+const PLAYER_SPEED: f32 = 500.;
+const ACCEL_RATE: f32 = 5000.;
+const ANIM_TIME: f32 = 0.2;
+
+const TILE_SIZE: f32 = 100.;
+
+const LEVEL_LEN: f32 = 5000.;
+
+const PROGRESS_LENGTH: f32 = 120.;
+const PROGRESS_HEIGHT: f32 = 20.;
+const PROGRESS_FRAME: f32 = 5.;
+
+#[derive(States, Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum GameState {
+    #[default]
+    StartScreen,
+    Credits,
+    Game,
+}
+
+fn main() {
+    App::new()
+        // Setup Bevy and game window
+        .add_plugins(DefaultPlugins.set(WindowPlugin {
+            primary_window: Some(Window {
+                title: String::from(TITLE),
+                resolution: (WIN_W as u32, WIN_H as u32).into(),
+                present_mode: PresentMode::AutoVsync,
+                ..default()
+            }),
+            ..default()
+        }))
+        .insert_resource(ClearColor(Color::Srgba(Srgba::gray(0.25))))
+        // Set initial state
+        .init_state::<GameState>()
+        // Add general systems
+        .add_systems(Startup, setup_camera)
+        .add_systems(OnEnter(GameState::StartScreen), log_state_change)
+        .add_systems(OnEnter(GameState::Credits), log_state_change)
+        .add_systems(OnEnter(GameState::Game), log_state_change)
+        // Add all subsystems
+        .add_plugins((
+            startscreen::StartScreenPlugin,
+            credits::CreditsPlugin,
+            game::GamePlugin,
+            physics::PhysicsPlugin,
+            server::ServerPlugin,
+            client::ClientPlugin,
+            side::SidePlugin,
+        ))
+        .init_resource::<server::ClientInput>()
+        .init_resource::<client::ServerInput>()
+        .init_resource::<server::Player1Money>()
+        .init_resource::<server::Player2Money>()
+        .init_resource::<client::Client1Money>()
+        .init_resource::<client::Client2Money>()
+        .init_resource::<server::Player1Address>()
+        .init_resource::<server::Player2Address>()
+        .init_resource::<game::NextBlockId>()
+        // Run the game
+        .run();
+}
+
+fn setup_camera(mut commands: Commands) {
+    commands.spawn(Camera2d);
+}
+
+fn log_state_change(state: Res<State<GameState>>) {
+    info!("Just moved to {:?}!", state.get());
+}
