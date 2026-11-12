@@ -235,7 +235,7 @@ fn spawn_block(
         let entity = commands
             .spawn((
                 Sprite {
-                    image: asset_server.load("MPWood.png"),
+                    image: asset_server.load("WoodBlock.png"),
                     ..default()
                 },
                 Block {
