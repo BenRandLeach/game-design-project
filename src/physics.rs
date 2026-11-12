@@ -37,7 +37,8 @@ const TOWER_BASE_Y: f32 = (-WIN_H / 2.0) + 20.0;
 // TODO(physics): hardcoded for WoodBlock.png (48px); replace with a
 // per-entity half-extent once AABB/SAT collision lands.
 // H: 12, W: 48 for new block
-const BLOCK_HALF_HEIGHT: f32 = 24.0
+// H: 24, W: 8 for OG block
+const BLOCK_HALF_HEIGHT: f32 = 24.0;
 const BLOCK_HALF_WIDTH: f32 = 8.0;
 
 pub struct Obb {
@@ -46,6 +47,9 @@ pub struct Obb {
     pub half_dims: Vec2, // (BLOCK_HALF_HEIGHT, BLOCK_HALF_WIDTH)
     pub axes: [Vec2; 2], // Both unique angles turned into 2 new local axes
 }
+
+#[derive(Component)]
+pub struct StaticBody;
 
 #[derive(Component, Deref, DerefMut, Default)]
 pub struct Velocity(pub Vec2);
@@ -204,6 +208,7 @@ struct Body {
     fcoeff: f32,
     ammo: bool,
     touched: bool,
+    is_static: bool,
 }
 
 // A single point where two bodies touch. The normal points from a to b.
@@ -435,8 +440,14 @@ fn solve_positions(overlaps: &[Overlap], bodies: &mut [Body]) {
     for overlap in overlaps {
         let inv_a = overlap.a.map_or(0.0, |a| bodies[a].inv_mass);
         let inv_b = bodies[overlap.b].inv_mass;
+
+        let total_inv = inv_a + inv_b;
+        if total_inv == 0.0{
+            continue;
+        }
+
         let push = overlap.normal * (overlap.depth - POSITION_SLOP).max(0.0) * POSITION_CORRECTION
-            / (inv_a + inv_b);
+            / total_inv;
         if let Some(a) = overlap.a {
             bodies[a].transform.translation -= (push * inv_a).extend(0.0);
         }
@@ -446,6 +457,9 @@ fn solve_positions(overlaps: &[Overlap], bodies: &mut [Body]) {
 
 // Semi-implicit Euler: update velocity first, then move using the new velocity.
 fn integrate_velocity(body: &mut Body, dt: f32) {
+    if body.is_static {
+        return;
+    }
     body.velocity.y += GRAVITY * dt;
     body.transform.translation += (body.velocity * dt).extend(0.0);
     body.transform.rotate_z(body.ang_vel * dt);
@@ -464,6 +478,7 @@ pub fn simulate(
             &mut AngularVelocity,
             Has<Slingshot>,
             Has<Ammo>,
+            Has<StaticBody>,
         ),
         Without<BeingPlaced>,
     >,
@@ -471,16 +486,30 @@ pub fn simulate(
     let mut bodies: Vec<Body> = query
         .iter()
         .map(
-            |(entity, block, transform, velocity, ang_vel, slingshot, ammo)| {
-                let half_size = half_size(slingshot, ammo);
+            |(entity, block, transform, velocity, ang_vel, slingshot, ammo, is_static)| {
+            let half_size = if is_static {
+            Vec2::new(128.0, 10.0)
+            } else {
+                half_size(slingshot, ammo)
+            };
                 Body {
                     entity,
                     transform: *transform,
                     half_size,
                     velocity: velocity.0,
                     ang_vel: ang_vel.0,
-                    inv_mass: 1.0 / block.mass,
-                    inv_inertia: 1.0 / block_inertia(block.mass, half_size.x, half_size.y),
+                    //inv_mass: 1.0 / block.mass,
+                    //inv_inertia: 1.0 / block_inertia(block.mass, half_size.x, half_size.y),
+                    is_static,
+                    inv_mass: if is_static { 
+                        0.0 
+                    } else { 
+                        1.0 / block.mass },
+                    inv_inertia: if is_static {
+                        0.0
+                    } else {
+                        1.0 / block_inertia(block.mass, half_size.x, half_size.y)
+                    },
                     fcoeff: block.fcoeff,
                     ammo,
                     touched: false,
@@ -513,7 +542,7 @@ pub fn simulate(
     }
 
     for body in &bodies {
-        let Ok((_, _, mut transform, mut velocity, mut ang_vel, _, _)) = query.get_mut(body.entity)
+        let Ok((_, _, mut transform, mut velocity, mut ang_vel, _, _, _)) = query.get_mut(body.entity)
         else {
             continue;
         };
@@ -566,8 +595,8 @@ pub fn bound_placement(
         transform.translation.x += dir * MOVE_SPEED;
 
         // Bounds come from the block's own side, not the local player's
-        let min_x = side.base_left() + (BLOCK_HALF_WIDTH * 2.);
-        let max_x = side.base_right() - (BLOCK_HALF_WIDTH * 2.);
+        let min_x = side.base_left() + (BLOCK_HALF_WIDTH);
+        let max_x = side.base_right() - (BLOCK_HALF_WIDTH);
         transform.translation.x = transform.translation.x.clamp(min_x, max_x);
 
         // Bounce off the edges so auto-move keeps going back and forth

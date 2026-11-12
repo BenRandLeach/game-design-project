@@ -250,6 +250,7 @@ pub fn client_listener(
                         commands.spawn((
                             Sprite {
                                 image: asset_server.load("WoodBlock.png"),
+                                //custom_size: Some(Vec2::new(16.0, 48.0)),
                                 ..default()
                             },
                             BlockId(id),
