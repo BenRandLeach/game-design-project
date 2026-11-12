@@ -6,6 +6,7 @@ pub const LEFT: f32 = -WIN_W / 2.0;
 pub const RIGHT: f32 = WIN_W / 2.0;
 pub const EDGE_TO_TOWER: f32 = 48.0; // 48px between base and border
 pub const BASE_WIDTH: f32 = 256.0;
+use crate::server::ClientInput;
 
 #[derive(Component, Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub enum Side {
@@ -54,9 +55,14 @@ impl Plugin for SidePlugin {
 }
 
 // TEMP: replace with network side assignment (e.g. set LocalSide in client::connect)
-fn debug_toggle_side(keys: Res<ButtonInput<KeyCode>>, mut side: ResMut<LocalSide>) {
-    if keys.just_pressed(KeyCode::KeyO) {
-        side.0 = side.0.opposite();
+fn debug_toggle_side(keys: Res<ButtonInput<KeyCode>>, mut side: ResMut<LocalSide>,client_data: ResMut<ClientInput>,) {
+    if client_data.player==1 {
+        side.0 = Side::Left;
         info!("Switched to {:?} side", side.0);
     }
+    else
+    {
+        side.0 = Side::Right;
+    }
+
 }
