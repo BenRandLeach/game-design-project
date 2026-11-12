@@ -27,6 +27,9 @@ pub struct ClientPlugin;
 impl Plugin for ClientPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(GameState::Game), network_ui)
+        .add_systems(
+                OnEnter(GameState::Game),start_connect.after(network_ui).run_if(resource_exists::<ClientSocket>),
+            )
             .add_systems(
                 // Not FixedUpdate: a frame can run 0 or 2 ticks, which drops or doubles key presses
                 Update,
@@ -105,6 +108,24 @@ fn network_ui(mut commands: Commands, client: Option<Res<ClientSocket>>,mut p1: 
     //let send_label = commands.spawn(Text::new("Send")).id();
     let status = commands.spawn((Text::new(status_mess), statusText)).id();
 }
+fn start_connect(client: Option<Res<ClientSocket>>,
+    mut status: Single<&mut Text, With<statusText>>,)
+    {
+        status.0 = match &client {
+            Some(c) => match c.socket.send_to(b"Q", c.serv_addy) {
+                Ok(n) => format!("sent {n} bytes"),
+                Err(e) => format!("failure to send : {e}"),
+            },
+            None => String::from("Not connected, enter IP on the start screen"),
+        };
+        status.0 = match &client {
+            Some(c) => match c.socket.send_to(b"Q", c.serv_addy) {
+                Ok(n) => format!("sent {n} bytes"),
+                Err(e) => format!("failure to send : {e}"),
+            },
+            None => String::from("Not connected, enter IP on the start screen"),
+        };
+    }
 fn do_send_button(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     client: Option<Res<ClientSocket>>,
