@@ -36,8 +36,8 @@ const TOWER_BASE_Y: f32 = (-WIN_H / 2.0) + 20.0;
 
 // TODO(physics): hardcoded for WoodBlock.png (48px); replace with a
 // per-entity half-extent once AABB/SAT collision lands.
-const BLOCK_HALF_HEIGHT: f32 = 24.0;
-const BLOCK_HALF_WIDTH: f32 = 8.0;
+const BLOCK_HALF_HEIGHT: f32 = 12.0;
+const BLOCK_HALF_WIDTH: f32 = 48.0;
 
 pub struct Obb {
     // Obb object

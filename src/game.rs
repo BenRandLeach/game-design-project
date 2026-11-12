@@ -235,7 +235,7 @@ fn spawn_block(
         let entity = commands
             .spawn((
                 Sprite {
-                    image: asset_server.load("WoodBlock.png"),
+                    image: asset_server.load("MPWood.png"),
                     ..default()
                 },
                 Block {
@@ -270,7 +270,7 @@ fn spawn_slingshot(
         let slingshot = commands
             .spawn((
                 Sprite {
-                    image: asset_server.load("Cannon2.png"),
+                    image: asset_server.load("MPCannon.png"),
                     ..default()
                 },
                 Slingshot,
@@ -350,7 +350,7 @@ fn setup_game(
     asset_server: Res<AssetServer>,
     mut camera: Single<&mut Transform, With<Camera>>,
 ) {
-    commands.spawn((
+    /*commands.spawn((
         Sprite {
             image: asset_server.load("Tower_outline.png"),
             color: Color::srgba(1.0, 1.0, 1.0, 1.0),
@@ -358,10 +358,10 @@ fn setup_game(
             ..default()
         },
         Transform::from_xyz(0., 0., 0.1),
-    ));
+    ));*/
     commands.spawn((
         Sprite {
-            image: asset_server.load("Tower_Balance_Background.png"),
+            image: asset_server.load("MPBR.png"),
             color: Color::srgba(1.0, 1.0, 1.0, 0.9),
             custom_size: Some(SLIDE_SIZE),
             ..default()

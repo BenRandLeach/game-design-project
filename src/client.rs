@@ -249,7 +249,7 @@ pub fn client_listener(
                     if !found && !spawned_this_call.contains(&id) {
                         commands.spawn((
                             Sprite {
-                                image: asset_server.load("WoodBlock.png"),
+                                image: asset_server.load("MPWood.png"),
                                 ..default()
                             },
                             BlockId(id),
