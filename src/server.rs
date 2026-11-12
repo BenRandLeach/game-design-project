@@ -21,6 +21,7 @@ pub struct ClientInput {
     pub player: u8
 }
 
+
 #[derive(Resource, Default)]
 pub struct Player1Money {
     pub money: u64,
