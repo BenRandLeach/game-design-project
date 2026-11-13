@@ -23,12 +23,16 @@ const STARTING_MONEY: u64 = 100;
 const BLOCK_COST: u64 = 1;
 const GROUND_Y: f32 = -WIN_H / 2.0;
 const TOWER_BASE_Y: f32 = (-WIN_H / 2.0) + 20.0;
-
-const BLOCK_WIDTH: f32 = 16.0;
-const BLOCK_HEIGHT: f32 = 48.0;
+// H: 24, W: 96 for new block
+// H: 48, W: 16 for OG block
+const BLOCK_WIDTH: f32 = 48.0;
+const BLOCK_HEIGHT: f32 = 16.0;
 
 const LAUNCH_SPEED: Vec2 = Vec2::new(800.0, 500.0);
 const MUZZLE_OFFSET: f32 = 36.0; // Past the slingshot's hitbox, or the shot collides with its own slingshot
+
+#[derive(Component)]
+pub struct StaticBody;
 
 #[derive(Component)]
 pub struct Block {
@@ -36,6 +40,7 @@ pub struct Block {
     pub angular_velocity: f32,
     pub inertia: f32,
     pub fcoeff: f32,
+    pub playerNum: u8,
 }
 
 #[derive(Component)]
@@ -201,10 +206,11 @@ fn spawn_block(
     mut next_id: ResMut<NextBlockId>,
     mut p1_money: ResMut<Player1Money>,
     mut p2_money: ResMut<Player2Money>,
+
 ) {
 
 
-    if being_placed.iter().count() > 0 {
+    if being_placed.iter().count() > 0   {
         return;
     }
     if server_data.input != b'B' && client_data.input != b'B' {
@@ -231,17 +237,20 @@ fn spawn_block(
         next_id.0 += 1;
         let mass = 1.0;
         let inertia = mass * ((BLOCK_WIDTH * BLOCK_WIDTH) + (BLOCK_HEIGHT * BLOCK_HEIGHT)) / 12.0;
+        let playerNum=player;
 
         let entity = commands
             .spawn((
                 Sprite {
                     image: asset_server.load("WoodBlock.png"),
+                    //custom_size: Some(Vec2::new(BLOCK_WIDTH, BLOCK_HEIGHT)),
                     ..default()
                 },
                 Block {
                     mass,
                     angular_velocity: 0.0,
                     inertia,
+                    playerNum,
                     fcoeff: 0.25,
                 },
                 // NewEntity,
@@ -270,7 +279,7 @@ fn spawn_slingshot(
         let slingshot = commands
             .spawn((
                 Sprite {
-                    image: asset_server.load("Cannon2.png"),
+                    image: asset_server.load("MPCannon.png"),
                     ..default()
                 },
                 Slingshot,
@@ -278,6 +287,7 @@ fn spawn_slingshot(
                     mass: 1.0,
                     angular_velocity: 0.0,
                     inertia: 0.0,
+                    playerNum:client_data.player,
                     fcoeff: 0.75,
                 },
                 JustDropped,
@@ -317,6 +327,7 @@ fn launch_cannonball(
                     mass: 1.0,
                     angular_velocity: 0.0,
                     inertia: 0.0,
+                    playerNum:client_data.player,
                     fcoeff: 0.75,
                 },
                 Velocity(launch_vel),
@@ -346,11 +357,11 @@ fn reset_money(mut p1: ResMut<Player1Money>, mut p2: ResMut<Player2Money>){
 
 fn setup_game(
     mut commands: Commands,
-
+    client_data: ResMut<ClientInput>,
     asset_server: Res<AssetServer>,
     mut camera: Single<&mut Transform, With<Camera>>,
 ) {
-    commands.spawn((
+    /*commands.spawn((
         Sprite {
             image: asset_server.load("Tower_outline.png"),
             color: Color::srgba(1.0, 1.0, 1.0, 1.0),
@@ -358,15 +369,34 @@ fn setup_game(
             ..default()
         },
         Transform::from_xyz(0., 0., 0.1),
-    ));
+    ));*/
+    
     commands.spawn((
         Sprite {
-            image: asset_server.load("Tower_Balance_Background.png"),
+            image: asset_server.load("MPBR.png"),
             color: Color::srgba(1.0, 1.0, 1.0, 0.9),
             custom_size: Some(SLIDE_SIZE),
             ..default()
         },
         Transform::from_xyz(0., 0., 0.),
     ));
+    let base_mass = 1.0;
+    let base_inertia = base_mass * ((256.0 * 256.0) + (20.0 * 20.0)) / 12.0;
+
+    for x in [-464.0, 464.0] {
+        commands.spawn((
+            Block {
+                mass: base_mass,
+                angular_velocity: 0.0,
+                inertia: base_inertia,
+                playerNum:client_data.player,
+                fcoeff: 0.25,
+            },
+            Velocity(Vec2::ZERO),
+            AngularVelocity(0.0),
+            StaticBody,
+            Transform::from_xyz(x, TOWER_BASE_Y - 10.0, 0.0),
+        ));
+    }
     camera.translation.x = 0.;
 }
