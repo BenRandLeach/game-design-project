@@ -16,8 +16,8 @@ use crate::physics::AngularVelocity;
 use crate::physics::Velocity;
 use crate::server::ClientInput;
 use crate::server::stop_input;
-use crate::side::LocalSide;
 use crate::server::{Player1Money, Player2Money};
+use crate::side::LocalSide;
 
 const STARTING_MONEY: u64 = 100;
 const BLOCK_COST: u64 = 1;
@@ -81,6 +81,11 @@ struct MoneyUi;
 #[derive(Component)]
 struct MoneyText(u8);
 
+#[derive(Component)]
+pub struct ShopBackground;
+
+#[derive(Resource, Default)]
+pub struct ShopOpen(pub bool);
 pub struct GamePlugin;
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
@@ -96,10 +101,15 @@ impl Plugin for GamePlugin {
                     .run_if(in_state(GameState::Game))
                     .run_if(resource_exists::<IsHost>),
             )
-            .add_systems(OnExit(GameState::Game), crate::startscreen::despawn_with::<MoneyUi>)
+            .add_systems(Update, toggle_shop.run_if(in_state(GameState::Game)))
+            .add_systems(
+                OnExit(GameState::Game),
+                crate::startscreen::despawn_with::<MoneyUi>,
+            )
             //.add_systems(Update, move_blocks.run_if(in_state(GameState::Game)))
             //.add_systems(Update, simulate_lag.run_if(in_state(GameState::Game)))
             .insert_resource(CurrentlyActive::default())
+            .insert_resource(ShopOpen::default())
             .add_message::<Game>();
     }
 }
@@ -108,34 +118,34 @@ fn simulate_lag() {
     thread::sleep(Duration::from_millis(200));
 }
 */
-fn spawn_money_ui(mut commands: Commands, asset_server: Res<AssetServer>){
+fn spawn_money_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
     let coin = asset_server.load("Coin.png");
-    for (player, left_side)in[(1u8, true), (2u8, false)]{
+    for (player, left_side) in [(1u8, true), (2u8, false)] {
         commands
-        .spawn((
-            Node {
-                position_type: PositionType::Absolute,
-                top: px(50),
-                left: if left_side{px(16)} else{auto()},
-                right: if left_side{auto()} else{px(16)},
-                align_items: AlignItems::Center,
-                column_gap: px(8),
-                ..default()
-            },
-            MoneyUi,
+            .spawn((
+                Node {
+                    position_type: PositionType::Absolute,
+                    top: px(50),
+                    left: if left_side { px(16) } else { auto() },
+                    right: if left_side { auto() } else { px(16) },
+                    align_items: AlignItems::Center,
+                    column_gap: px(8),
+                    ..default()
+                },
+                MoneyUi,
             ))
-            .with_children(|parent|{
+            .with_children(|parent| {
                 parent.spawn((
                     ImageNode::new(coin.clone()),
-                    Node{
-                        width:px(32),
+                    Node {
+                        width: px(32),
                         height: px(32),
                         ..default()
                     },
                 ));
                 parent.spawn((
                     Text::new(STARTING_MONEY.to_string()),
-                    TextFont{
+                    TextFont {
                         font_size: FontSize::Px(28.0),
                         ..default()
                     },
@@ -144,11 +154,14 @@ fn spawn_money_ui(mut commands: Commands, asset_server: Res<AssetServer>){
             });
     }
 }
-fn update_money_ui(p1: Res<Client1Money>, p2: Res<Client2Money>, mut texts: Query<(&mut Text, &MoneyText)>,){
-
-    for(mut text, who) in &mut texts{
-        let amount = if who.0 == 1{p1.money} else{ p2.money};
-        text.0= amount.to_string();
+fn update_money_ui(
+    p1: Res<Client1Money>,
+    p2: Res<Client2Money>,
+    mut texts: Query<(&mut Text, &MoneyText)>,
+) {
+    for (mut text, who) in &mut texts {
+        let amount = if who.0 == 1 { p1.money } else { p2.money };
+        text.0 = amount.to_string();
     }
 }
 fn game_mess_listener(
@@ -206,62 +219,85 @@ fn spawn_block(
     mut p1_money: ResMut<Player1Money>,
     mut p2_money: ResMut<Player2Money>,
 ) {
-
-
     if being_placed.iter().count() > 0 {
         return;
     }
     if server_data.input != b'B' && client_data.input != b'B' {
         return;
     }
-        let player = client_data.player;
-        stop_input(client_data);
-        stop_server_input(server_data);
+    let player = client_data.player;
+    stop_input(client_data);
+    stop_server_input(server_data);
 
-        let wallet = match player {
-            1 => &mut p1_money.money,
-            2=> &mut p2_money.money,
-            _ => return,
-            
-        };
-        if *wallet < BLOCK_COST{
-            return;
-        }
-        *wallet -= BLOCK_COST;
-        if let Some(active_entity) = currently_active.0 {
-            commands.entity(active_entity).remove::<NewEntity>();
-        }
-        let id = next_id.0;
-        next_id.0 += 1;
-        let mass = 1.0;
-        let inertia = mass * ((BLOCK_WIDTH * BLOCK_WIDTH) + (BLOCK_HEIGHT * BLOCK_HEIGHT)) / 12.0;
+    let wallet = match player {
+        1 => &mut p1_money.money,
+        2 => &mut p2_money.money,
+        _ => return,
+    };
+    if *wallet < BLOCK_COST {
+        return;
+    }
+    *wallet -= BLOCK_COST;
+    if let Some(active_entity) = currently_active.0 {
+        commands.entity(active_entity).remove::<NewEntity>();
+    }
+    let id = next_id.0;
+    next_id.0 += 1;
+    let mass = 1.0;
+    let inertia = mass * ((BLOCK_WIDTH * BLOCK_WIDTH) + (BLOCK_HEIGHT * BLOCK_HEIGHT)) / 12.0;
 
-        let entity = commands
-            .spawn((
-                Sprite {
-                    image: asset_server.load("WoodBlock.png"),
-                    //custom_size: Some(Vec2::new(BLOCK_WIDTH, BLOCK_HEIGHT)),
-                    ..default()
-                },
-                Block {
-                    mass,
-                    angular_velocity: 0.0,
-                    inertia,
-                    fcoeff: 0.25,
-                },
-                // NewEntity,
-                BlockId(id),
-                BeingPlaced,
-                Velocity(Vec2::new(0., 0.)),
-                AngularVelocity(0.),
-                local_side.0,
-                Transform::from_xyz(local_side.base_center(), 275., 1.),
-            ))
-            .id();
-        currently_active.0 = Some(entity);
+    let entity = commands
+        .spawn((
+            Sprite {
+                image: asset_server.load("WoodBlock.png"),
+                //custom_size: Some(Vec2::new(BLOCK_WIDTH, BLOCK_HEIGHT)),
+                ..default()
+            },
+            Block {
+                mass,
+                angular_velocity: 0.0,
+                inertia,
+                fcoeff: 0.25,
+            },
+            // NewEntity,
+            BlockId(id),
+            BeingPlaced,
+            Velocity(Vec2::new(0., 0.)),
+            AngularVelocity(0.),
+            local_side.0,
+            Transform::from_xyz(local_side.base_center(), 275., 1.),
+        ))
+        .id();
+    currently_active.0 = Some(entity);
+}
+fn toggle_shop(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    mut shop_open: ResMut<ShopOpen>,
+    shop_query: Query<Entity, With<ShopBackground>>,
+) {
+    if !keyboard_input.just_pressed(KeyCode::KeyV) {
+        return;
     }
 
-
+    if shop_open.0 {
+        for entity in &shop_query {
+            commands.entity(entity).despawn();
+        }
+        shop_open.0 = false;
+    } else {
+        commands.spawn((
+            Sprite {
+                image: asset_server.load("shopbackground.png"),
+                ..default()
+            },
+            ShopBackground,
+            Transform::from_xyz(0.0, 0.0, 5.0),
+        ));
+        shop_open.0 = true;
+    }
+}
 fn spawn_slingshot(
     mut commands: Commands,
     keyboard_input: Res<ButtonInput<KeyCode>>,
@@ -344,7 +380,7 @@ fn swap_to_credits(
         next_state.set(GameState::Credits);
     }
 }
-fn reset_money(mut p1: ResMut<Player1Money>, mut p2: ResMut<Player2Money>){
+fn reset_money(mut p1: ResMut<Player1Money>, mut p2: ResMut<Player2Money>) {
     p1.money = STARTING_MONEY;
     p2.money = STARTING_MONEY;
 }
@@ -364,7 +400,7 @@ fn setup_game(
         },
         Transform::from_xyz(0., 0., 0.1),
     ));*/
-    
+
     commands.spawn((
         Sprite {
             image: asset_server.load("MPBR.png"),
