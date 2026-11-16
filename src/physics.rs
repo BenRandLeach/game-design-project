@@ -38,8 +38,8 @@ const TOWER_BASE_Y: f32 = (-WIN_H / 2.0) + 20.0;
 // per-entity half-extent once AABB/SAT collision lands.
 // H: 12, W: 48 for new block
 // H: 24, W: 8 for OG block
-const BLOCK_HALF_HEIGHT: f32 = 24.0;
-const BLOCK_HALF_WIDTH: f32 = 8.0;
+const BLOCK_HALF_HEIGHT: f32 = 12.0;
+const BLOCK_HALF_WIDTH: f32 = 48.0;
 
 pub struct Obb {
     // Obb object
@@ -595,8 +595,8 @@ pub fn bound_placement(
         transform.translation.x += dir * MOVE_SPEED;
 
         // Bounds come from the block's own side, not the local player's
-        let min_x = side.base_left() + (BLOCK_HALF_WIDTH);
-        let max_x = side.base_right() - (BLOCK_HALF_WIDTH);
+        let min_x = side.base_left() + 4.0;
+        let max_x = side.base_right() - 4.0;
         transform.translation.x = transform.translation.x.clamp(min_x, max_x);
 
         // Bounce off the edges so auto-move keeps going back and forth
@@ -615,12 +615,13 @@ pub fn bound_placement(
             commands.entity(entity).insert(JustDropped);
         }
     }
-    if (client_data.input == b'S') ||(client_data.input == b'A') || (client_data.input == b'D') {
-        stop_input(client_data);
-    }
-    if (server_data.input == b'S')||(server_data.input == b'A')||(server_data.input == b'D') {
-        stop_server_input(server_data);
-    }
+    if matches!(client_data.input, b'S' | b'A' | b'D') {
+    stop_input(client_data);
+}
+
+if matches!(server_data.input, b'S' | b'A' | b'D') {
+    stop_server_input(server_data);
+}
     
 }
 

@@ -25,8 +25,8 @@ const GROUND_Y: f32 = -WIN_H / 2.0;
 const TOWER_BASE_Y: f32 = (-WIN_H / 2.0) + 20.0;
 // H: 24, W: 96 for new block
 // H: 48, W: 16 for OG block
-const BLOCK_WIDTH: f32 = 48.0;
-const BLOCK_HEIGHT: f32 = 16.0;
+const BLOCK_WIDTH: f32 = 96.0;
+const BLOCK_HEIGHT: f32 = 24.0;
 
 const LAUNCH_SPEED: Vec2 = Vec2::new(800.0, 500.0);
 const MUZZLE_OFFSET: f32 = 36.0; // Past the slingshot's hitbox, or the shot collides with its own slingshot
@@ -249,7 +249,7 @@ fn spawn_block(
     let entity = commands
         .spawn((
             Sprite {
-                image: asset_server.load("WoodBlock.png"),
+                image: asset_server.load("MPWoodB.png"),
                 //custom_size: Some(Vec2::new(BLOCK_WIDTH, BLOCK_HEIGHT)),
                 ..default()
             },
@@ -410,22 +410,26 @@ fn setup_game(
         },
         Transform::from_xyz(0., 0., 0.),
     ));
-    let base_mass = 1.0;
+    /*let base_mass = 1.0;
     let base_inertia = base_mass * ((256.0 * 256.0) + (20.0 * 20.0)) / 12.0;
 
-    for x in [-464.0, 464.0] {
-        commands.spawn((
-            Block {
-                mass: base_mass,
-                angular_velocity: 0.0,
-                inertia: base_inertia,
-                fcoeff: 0.25,
-            },
-            Velocity(Vec2::ZERO),
-            AngularVelocity(0.0),
-            StaticBody,
-            Transform::from_xyz(x, TOWER_BASE_Y - 10.0, 0.0),
-        ));
-    }
+    for side in [Side::Left, Side::Right] {
+    commands.spawn((
+        Block {
+            mass: base_mass,
+            angular_velocity: 0.0,
+            inertia: base_inertia,
+            fcoeff: 0.25,
+        },
+        Velocity(Vec2::ZERO),
+        AngularVelocity(0.0),
+        StaticBody,
+        Transform::from_xyz(
+            side.base_center(),
+            TOWER_BASE_Y - 10.0,
+            0.0,
+        ),
+    ));
+}*/
     camera.translation.x = 0.;
 }

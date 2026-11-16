@@ -270,7 +270,7 @@ pub fn client_listener(
                     if !found && !spawned_this_call.contains(&id) {
                         commands.spawn((
                             Sprite {
-                                image: asset_server.load("WoodBlock.png"),
+                                image: asset_server.load("MPWoodB.png"),
                                 //custom_size: Some(Vec2::new(16.0, 48.0)),
                                 ..default()
                             },
