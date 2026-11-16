@@ -196,6 +196,25 @@ pub fn obb_collision(
     (min_touch, min_axis)
 }
 
+#[derive(Clone, Copy)]
+enum Shape {
+    Box { half_size: Vec2 },
+    Circle { radius: f32 },
+}
+
+//  deterimine the shape of the object 
+// slingshots and blocks get shape: box
+// ammo gets shape: circle
+fn shape(slingshot: bool, ammo: bool) -> Shape {
+    if slingshot {
+        Shape::Box {half_size: Vec2::new(22.0, 22.0)}
+    } else if ammo {
+        Shape::Circle {radius: 12.0}
+    } else {
+        Shape::Box {half_size: Vec2::new(BLOCK_HALF_WIDTH, BLOCK_HALF_HEIGHT)}
+    }
+}
+
 // Copy of a body the solver can freely work on, written back to its entity after the tick
 struct Body {
     entity: Entity,
@@ -803,6 +822,8 @@ mod tests {
                     angular_velocity: 0.0,
                     inertia: 0.0,
                     fcoeff: 0.25,
+                    playerNum: 0,
+                    rotated: false,
                 },
                 Velocity(vel),
                 AngularVelocity(0.0),
