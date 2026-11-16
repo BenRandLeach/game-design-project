@@ -569,26 +569,24 @@ fn remove_lost_entities(mut commands: Commands, bodies: Query<(&Transform, Entit
 
 // Bounds placement horizontally, and moves block while choosing placement
 pub fn bound_placement(
-    mut bodies: Query<(Entity, &mut Transform, &mut Velocity, &Side), With<BeingPlaced>>,
+    mut bodies: Query<(Entity,&Block, &mut Transform, &mut Velocity, &Side), With<BeingPlaced>>,
     mut commands: Commands,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     client_data: ResMut<ClientInput>,
     server_data: ResMut<ServerInput>,
 ) {
-    for (entity, mut transform, mut velocity, side) in &mut bodies {
+    for (entity,block, mut transform, mut velocity, side, ) in &mut bodies {
         transform.translation.x += velocity.x;
+        
         const MOVE_SPEED: f32 = 5.0;
         let mut dir = 0.;
-        if keyboard_input.pressed(KeyCode::KeyA)
-            || client_data.input == b'A'
-            || server_data.input == b'A'
+        if client_data.input == b'A' && client_data.player==block.playerNum
+            
         {
             dir += -1.;
         }
 
-        if keyboard_input.pressed(KeyCode::KeyD)
-            || client_data.input == b'D'
-            || server_data.input == b'D'
+        if client_data.input == b'D' && client_data.player==block.playerNum
         {
             dir += 1.;
         }
@@ -606,9 +604,8 @@ pub fn bound_placement(
             velocity.x = velocity.x.abs();
         }
 
-        if keyboard_input.pressed(KeyCode::KeyS)
-            || client_data.input == b'S'
-            || server_data.input == b'S'
+        if client_data.input == b'S' && client_data.player==block.playerNum
+            
         {
             velocity.x = 0.0;
             commands.entity(entity).remove::<BeingPlaced>();
@@ -627,11 +624,14 @@ if matches!(server_data.input, b'S' | b'A' | b'D') {
 
 // Rotate current block being placed by 90 degrees (pi/2 radians)
 pub fn rotate_block(
+    mut playerNum: Query<&mut Block, With<BeingPlaced>>,
     mut blocks: Query<&mut Transform, With<BeingPlaced>>,
     mut client_data: ResMut<ClientInput>,
     mut server_data: ResMut<ServerInput>,
 ) {
-    let rotate = client_data.input == b'R' || server_data.input == b'R';
+    let rotate=false;
+    if let Ok(mut block) = playerNum.single_mut(){
+        let rotate = client_data.input == b'R' &&  client_data.player==block.playerNum;}
     if client_data.input == b'R' {
         client_data.input = b'0';
     }
@@ -648,6 +648,7 @@ pub fn rotate_block(
 pub fn fast_fall(
     time: Res<Time>,
     active: Res<CurrentlyActive>,
+    mut playerNum: Query<&mut Block, With<JustDropped>>,
     mut blocks: Query<&mut Velocity, With<JustDropped>>,
     keyboard: Res<ButtonInput<KeyCode>>,
     client_data: ResMut<ClientInput>,
@@ -655,8 +656,10 @@ pub fn fast_fall(
 ) {
     const ACCEL_INCREASE: f32 = 2000.;
     const MAX_FALL_SPEED: f32 = 10000.;
-
-    if !(keyboard.pressed(KeyCode::KeyS) || client_data.input == b'S' || server_data.input == b'S')
+    let cannotInteract=false;
+    if let Ok(mut block) = playerNum.single_mut(){
+        let cannotInteract = client_data.input != b'S' ||  client_data.player!=block.playerNum;}
+    if (client_data.input != b'S' || cannotInteract )
     {
         return;
     } else {

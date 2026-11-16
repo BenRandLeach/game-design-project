@@ -40,6 +40,7 @@ pub struct Block {
     pub angular_velocity: f32,
     pub inertia: f32,
     pub fcoeff: f32,
+    pub playerNum: u8,
 }
 
 #[derive(Component)]
@@ -212,6 +213,7 @@ fn spawn_block(
     asset_server: Res<AssetServer>,
     mut currently_active: ResMut<CurrentlyActive>,
     being_placed: Query<Entity, With<BeingPlaced>>,
+    mut playerNum: Query<&mut Block, With<BeingPlaced>>,
     local_side: Res<LocalSide>,
     client_data: ResMut<ClientInput>,
     server_data: ResMut<ServerInput>,
@@ -257,6 +259,7 @@ fn spawn_block(
                 mass,
                 angular_velocity: 0.0,
                 inertia,
+                playerNum:player,
                 fcoeff: 0.25,
             },
             // NewEntity,
@@ -319,6 +322,7 @@ fn spawn_slingshot(
                     mass: 1.0,
                     angular_velocity: 0.0,
                     inertia: 0.0,
+                    playerNum:client_data.player,
                     fcoeff: 0.75,
                 },
                 JustDropped,
@@ -358,6 +362,7 @@ fn launch_cannonball(
                     mass: 1.0,
                     angular_velocity: 0.0,
                     inertia: 0.0,
+                    playerNum:client_data.player,
                     fcoeff: 0.75,
                 },
                 Velocity(launch_vel),
@@ -390,6 +395,7 @@ fn setup_game(
 
     asset_server: Res<AssetServer>,
     mut camera: Single<&mut Transform, With<Camera>>,
+    client_data: ResMut<ClientInput>,
 ) {
     /*commands.spawn((
         Sprite {
@@ -413,23 +419,19 @@ fn setup_game(
     /*let base_mass = 1.0;
     let base_inertia = base_mass * ((256.0 * 256.0) + (20.0 * 20.0)) / 12.0;
 
-    for side in [Side::Left, Side::Right] {
-    commands.spawn((
-        Block {
-            mass: base_mass,
-            angular_velocity: 0.0,
-            inertia: base_inertia,
-            fcoeff: 0.25,
-        },
-        Velocity(Vec2::ZERO),
-        AngularVelocity(0.0),
-        StaticBody,
-        Transform::from_xyz(
-            side.base_center(),
-            TOWER_BASE_Y - 10.0,
-            0.0,
-        ),
-    ));
-}*/
+    for x in [-464.0, 464.0] {
+        commands.spawn((
+            Block {
+                mass: base_mass,
+                angular_velocity: 0.0,
+                inertia: base_inertia,
+                fcoeff: 0.25,
+            },
+            Velocity(Vec2::ZERO),
+            AngularVelocity(0.0),
+            StaticBody,
+            Transform::from_xyz(x, TOWER_BASE_Y - 10.0, 0.0),
+        ));
+    }
     camera.translation.x = 0.;
 }
