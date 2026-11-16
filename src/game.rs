@@ -40,6 +40,7 @@ pub struct Block {
     pub angular_velocity: f32,
     pub inertia: f32,
     pub fcoeff: f32,
+    pub playerNum: u8,
 }
 
 #[derive(Component)]
@@ -257,6 +258,7 @@ fn spawn_block(
                 mass,
                 angular_velocity: 0.0,
                 inertia,
+                playerNum:player,
                 fcoeff: 0.25,
             },
             // NewEntity,
@@ -319,6 +321,7 @@ fn spawn_slingshot(
                     mass: 1.0,
                     angular_velocity: 0.0,
                     inertia: 0.0,
+                    playerNum:client_data.player,
                     fcoeff: 0.75,
                 },
                 JustDropped,
@@ -358,6 +361,7 @@ fn launch_cannonball(
                     mass: 1.0,
                     angular_velocity: 0.0,
                     inertia: 0.0,
+                    playerNum:client_data.player,
                     fcoeff: 0.75,
                 },
                 Velocity(launch_vel),
@@ -390,6 +394,7 @@ fn setup_game(
 
     asset_server: Res<AssetServer>,
     mut camera: Single<&mut Transform, With<Camera>>,
+    client_data: ResMut<ClientInput>,
 ) {
     /*commands.spawn((
         Sprite {
@@ -419,6 +424,7 @@ fn setup_game(
                 mass: base_mass,
                 angular_velocity: 0.0,
                 inertia: base_inertia,
+                playerNum:client_data.player,
                 fcoeff: 0.25,
             },
             Velocity(Vec2::ZERO),
