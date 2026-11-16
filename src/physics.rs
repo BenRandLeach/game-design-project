@@ -580,21 +580,28 @@ pub fn bound_placement(
         
         const MOVE_SPEED: f32 = 5.0;
         let mut dir = 0.;
-        if client_data.input == b'A' && client_data.player==block.playerNum
-            
-        {
-            dir += -1.;
-        }
+    if client_data.input == b'A' && client_data.player==block.playerNum
+    {
+      dir -= 1.0;
+    }
 
-        if client_data.input == b'D' && client_data.player==block.playerNum
-        {
-            dir += 1.;
-        }
+    if client_data.input == b'D' && client_data.player==block.playerNum      
+    {
+        dir += 1.0;
+    }
         transform.translation.x += dir * MOVE_SPEED;
+        
+    // Bounds come from the block's own side, not the local player's
+    let half_width = if block.rotated 
+    {
+    BLOCK_HALF_HEIGHT
+    } else {
+    BLOCK_HALF_WIDTH
+    };
 
-        // Bounds come from the block's own side, not the local player's
-        let min_x = side.base_left() + 4.0;
-        let max_x = side.base_right() - 4.0;
+    let min_x = side.base_left() + half_width;
+    let max_x = side.base_right() - half_width;
+        
         transform.translation.x = transform.translation.x.clamp(min_x, max_x);
 
         // Bounce off the edges so auto-move keeps going back and forth
@@ -624,24 +631,40 @@ if matches!(server_data.input, b'S' | b'A' | b'D') {
 
 // Rotate current block being placed by 90 degrees (pi/2 radians)
 pub fn rotate_block(
-    mut playerNum: Query<&mut Block, With<BeingPlaced>>,
-    mut blocks: Query<&mut Transform, With<BeingPlaced>>,
+    mut blocks: Query<(&mut Block, &mut Transform, &Side), With<BeingPlaced>>,
     mut client_data: ResMut<ClientInput>,
     mut server_data: ResMut<ServerInput>,
 ) {
-    let rotate=false;
-    if let Ok(mut block) = playerNum.single_mut(){
-        let rotate = client_data.input == b'R' &&  client_data.player==block.playerNum;}
+    let mut rotate = client_data.input == b'R' || server_data.input == b'R';
+
+    if let Ok((mut block, mut transform, side)) = blocks.single_mut() {
+        rotate = rotate && client_data.player == block.playerNum;
+
+    if rotate {
+    let new_half_width = if block.rotated {
+        BLOCK_HALF_WIDTH
+    } else {
+        BLOCK_HALF_HEIGHT
+    };
+
+    let min_x = side.base_left() + new_half_width;
+    let max_x = side.base_right() - new_half_width;
+
+    if transform.translation.x >= min_x
+        && transform.translation.x <= max_x
+    {
+        transform.rotate_z(std::f32::consts::FRAC_PI_2);
+        block.rotated = !block.rotated;
+    }
+    }
+    }
+
     if client_data.input == b'R' {
         client_data.input = b'0';
     }
+
     if server_data.input == b'R' {
         server_data.input = b'0';
-    }
-    if rotate {
-        if let Ok(mut transform) = blocks.single_mut() {
-            transform.rotation *= Quat::from_rotation_z(std::f32::consts::FRAC_PI_2);
-        }
     }
 }
 

@@ -23,8 +23,8 @@ const STARTING_MONEY: u64 = 100;
 const BLOCK_COST: u64 = 1;
 const GROUND_Y: f32 = -WIN_H / 2.0;
 const TOWER_BASE_Y: f32 = (-WIN_H / 2.0) + 20.0;
-// H: 24, W: 96 for new block
-// H: 48, W: 16 for OG block
+// W: 16, H: 48 for OG Block
+// W: 96, H: 24 for OG block
 const BLOCK_WIDTH: f32 = 96.0;
 const BLOCK_HEIGHT: f32 = 24.0;
 
@@ -41,6 +41,7 @@ pub struct Block {
     pub inertia: f32,
     pub fcoeff: f32,
     pub playerNum: u8,
+    pub rotated: bool,
 }
 
 #[derive(Component)]
@@ -261,6 +262,7 @@ fn spawn_block(
                 inertia,
                 playerNum:player,
                 fcoeff: 0.25,
+                rotated: false,
             },
             // NewEntity,
             BlockId(id),
@@ -324,6 +326,7 @@ fn spawn_slingshot(
                     inertia: 0.0,
                     playerNum:client_data.player,
                     fcoeff: 0.75,
+                    rotated: false,
                 },
                 JustDropped,
                 Velocity::default(),
@@ -364,6 +367,7 @@ fn launch_cannonball(
                     inertia: 0.0,
                     playerNum:client_data.player,
                     fcoeff: 0.75,
+                    rotated: false,
                 },
                 Velocity(launch_vel),
                 AngularVelocity(0.),
@@ -432,6 +436,6 @@ fn setup_game(
             StaticBody,
             Transform::from_xyz(x, TOWER_BASE_Y - 10.0, 0.0),
         ));
-    }
+    }*/
     camera.translation.x = 0.;
 }
