@@ -202,6 +202,15 @@ enum Shape {
     Circle { radius: f32 },
 }
 
+impl Shape {
+    fn intertia(&self, mass: f32) -> f32 {
+        match *self { // match shape to collision patter deffined below
+            Shape::Box { half_size} => block_inertia(mass, half_size.x, half_size.y),
+            Shape::Circle { radius: r} => mass * r, // circle moment of inertia (need equation - just mass * radius for now)
+        }
+    }
+}
+
 //  deterimine the shape of the object 
 // slingshots and blocks get shape: box
 // ammo gets shape: circle
