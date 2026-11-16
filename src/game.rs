@@ -213,6 +213,7 @@ fn spawn_block(
     asset_server: Res<AssetServer>,
     mut currently_active: ResMut<CurrentlyActive>,
     being_placed: Query<Entity, With<BeingPlaced>>,
+    mut playerNum: Query<&mut Block, With<BeingPlaced>>,
     local_side: Res<LocalSide>,
     client_data: ResMut<ClientInput>,
     server_data: ResMut<ServerInput>,
