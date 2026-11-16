@@ -203,7 +203,7 @@ enum Shape {
 }
 
 impl Shape {
-    fn intertia(&self, mass: f32) -> f32 {
+    fn inertia(&self, mass: f32) -> f32 {
         match *self { // match shape to collision patter deffined below
             Shape::Box { half_size} => block_inertia(mass, half_size.x, half_size.y),
             Shape::Circle { radius: r} => mass * r, // circle moment of inertia (need equation - just mass * radius for now)
@@ -228,7 +228,6 @@ fn shape(slingshot: bool, ammo: bool) -> Shape {
 struct Body {
     entity: Entity,
     transform: Transform,
-    half_size: Vec2,
     velocity: Vec2,
     ang_vel: f32,
     inv_mass: f32,
@@ -237,6 +236,7 @@ struct Body {
     ammo: bool,
     touched: bool,
     is_static: bool,
+    shape: Shape,
 }
 
 // A single point where two bodies touch. The normal points from a to b.
@@ -351,6 +351,20 @@ fn add_contact(
     contacts.push(contact);
 }
 
+// circle collision functions
+fn circle_box(center: Vec2, radius: f32, obb: &Obb) -> Option<(f32, Vec2, Vec2)> {
+   let d = center - obb.center; // collision vector
+    let local = Vec2::new(d.dot(obb.axes[0]), d.dot(obb.axes[1])); // collision vector in terms of box's coodinates
+    let clamped = local.clamp(-obb.half_dims, obb.half_dims);
+    let closest = obb.center + obb.axes[0] * clamped.x + obb.axes[1] * clamped.y;
+    let offset = center - closest;
+    let dist = offset.length();
+    if dist >= radius || dist < 1e-4 {
+        return None; // not touching (not handled yet)
+    }
+    Some((radius - dist, offset / dist, closest))
+}
+
 // Every overlapping pair of bodies
 fn find_body_contacts(
     bodies: &mut [Body],
@@ -360,24 +374,52 @@ fn find_body_contacts(
 ) {
     for i in 0..bodies.len() {
         for j in (i + 1)..bodies.len() {
-            let (t1, t2) = (bodies[i].transform, bodies[j].transform);
-            let (h1, h2) = (bodies[i].half_size, bodies[j].half_size);
-            let (depth, normal) = obb_collision(&t1, &t2, h1.x, h2.x, h1.y, h2.y);
-            if depth <= 0.0 {
-                continue;
+            match (bodies[i].shape, bodies[j].shape) {
+                // box-box collision
+                (Shape::Box {half_size: h1}, Shape::Box {half_size: h2}) => {
+                    let (t1, t2) = (bodies[i].transform, bodies[j].transform);
+                    // let (h1, h2) = (bodies[i].half_size, bodies[j].half_size);
+                    let (depth, normal) = obb_collision(&t1, &t2, h1.x, h2.x, h1.y, h2.y);
+                    if depth <= 0.0 {
+                        continue;
+                    }
+                    let fcoeff = (bodies[i].fcoeff * bodies[j].fcoeff).sqrt();
+                    let obb1 = create_obb(&t1, h1.x, h1.y);
+                    let obb2 = create_obb(&t2, h2.x, h2.y);
+                    for point in contact_points(&obb1, &obb2) {
+                        add_contact(contacts, cache, bodies, (Some(i), j), point, normal, fcoeff);
+                    }
+                    overlaps.push(Overlap {
+                        a: Some(i),
+                        b: j,
+                        normal,
+                        depth,
+                    });
+                }
+                // circle-box collision
+                (Shape::Circle { radius }, Shape::Box { half_size }) => {
+                    let obb = create_obb(&bodies[j].transform, half_size.x, half_size.y);
+                    let center = bodies[i].transform.translation.truncate();
+                    if let Some((depth, n, point)) = circle_box(center, radius, &obb) {
+                        let normal = -n; 
+                        let fcoeff = (bodies[i].fcoeff * bodies[j].fcoeff).sqrt();
+                        add_contact(contacts, cache, bodies, (Some(i), j), (0, point), normal, fcoeff);
+                        overlaps.push(Overlap { a: Some(i), b: j, normal, depth });
+                    }
+                }
+                // box-circle collision
+                (Shape::Box { half_size }, Shape::Circle { radius }) => {
+                    let obb = create_obb(&bodies[i].transform, half_size.x, half_size.y);
+                    let center = bodies[j].transform.translation.truncate();
+                    if let Some((depth, normal, point)) = circle_box(center, radius, &obb) {
+                        let fcoeff = (bodies[i].fcoeff * bodies[j].fcoeff).sqrt();
+                        add_contact(contacts, cache, bodies, (Some(i), j), (0, point), normal, fcoeff);
+                        overlaps.push(Overlap { a: Some(i), b: j, normal, depth });
+                    }
+                }
+                // ignore circle circle case for now (cannonballs will pass through eachother)
+                _ => {}
             }
-            let fcoeff = (bodies[i].fcoeff * bodies[j].fcoeff).sqrt();
-            let obb1 = create_obb(&t1, h1.x, h1.y);
-            let obb2 = create_obb(&t2, h2.x, h2.y);
-            for point in contact_points(&obb1, &obb2) {
-                add_contact(contacts, cache, bodies, (Some(i), j), point, normal, fcoeff);
-            }
-            overlaps.push(Overlap {
-                a: Some(i),
-                b: j,
-                normal,
-                depth,
-            });
         }
     }
 }
@@ -390,11 +432,11 @@ fn find_ground_contacts(
     overlaps: &mut Vec<Overlap>,
 ) {
     for i in 0..bodies.len() {
-        let obb = create_obb(
-            &bodies[i].transform,
-            bodies[i].half_size.x,
-            bodies[i].half_size.y,
-        );
+        let Shape::Box { half_size } = bodies[i].shape 
+        else {
+            continue; // circles cant hit base yet
+        };
+        let obb = create_obb(&bodies[i].transform, half_size.x, half_size.y);
         let fcoeff = bodies[i].fcoeff;
         let mut deepest: f32 = 0.0;
         for (id, corner) in (0u8..).zip(corners(&obb)) {
@@ -513,38 +555,26 @@ pub fn simulate(
 ) {
     let mut bodies: Vec<Body> = query
         .iter()
-        .map(
-            |(entity, block, transform, velocity, ang_vel, slingshot, ammo, is_static)| {
-            let half_size = if is_static {
-            Vec2::new(128.0, 10.0)
+        .map(|(entity, block, transform, velocity, ang_vel, slingshot, ammo, is_static)| {
+            let body_shape = if is_static {
+                Shape::Box {half_size: Vec2::new(128.0, 10.0)}
             } else {
-                half_size(slingshot, ammo)
+                shape(slingshot, ammo)
             };
-                Body {
-                    entity,
-                    transform: *transform,
-                    half_size,
-                    velocity: velocity.0,
-                    ang_vel: ang_vel.0,
-                    //inv_mass: 1.0 / block.mass,
-                    //inv_inertia: 1.0 / block_inertia(block.mass, half_size.x, half_size.y),
-                    is_static,
-                    inv_mass: if is_static { 
-                        0.0 
-                    } else { 
-                        1.0 / block.mass },
-                    inv_inertia: if is_static {
-                        0.0
-                    } else {
-                        1.0 / block_inertia(block.mass, half_size.x, half_size.y)
-                    },
-                    fcoeff: block.fcoeff,
-                    ammo,
-                    touched: false,
-                }
-            },
-        )
-        .collect();
+            Body {
+                entity,
+                transform: *transform,
+                shape: body_shape,
+                velocity: velocity.0,
+                ang_vel: ang_vel.0,
+                is_static,
+                inv_mass: if is_static {0.0} else {1.0 / block.mass},
+                inv_inertia: if is_static {0.0} else {1.0 / body_shape.inertia(block.mass)},
+                fcoeff: block.fcoeff,
+                ammo,
+                touched: false,
+            }
+        }).collect();
 
     let dt = time.delta_secs() / SUBSTEPS as f32;
     let mut contacts = Vec::new();
@@ -783,17 +813,6 @@ pub fn resolve_block_collision(
                 } */
             }
         }
-    }
-}
-
-// Half extents of a body's hitbox
-fn half_size(slingshot: bool, ammo: bool) -> Vec2 {
-    if slingshot {
-        Vec2::new(22.0, 22.0)
-    } else if ammo {
-        Vec2::new(12.0, 12.0)
-    } else {
-        Vec2::new(BLOCK_HALF_WIDTH, BLOCK_HALF_HEIGHT)
     }
 }
 
