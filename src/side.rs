@@ -39,6 +39,15 @@ impl Side {
     pub fn base_center(self) -> f32 {
         self.base_left() + BASE_WIDTH / 2.0
     }
+
+    /// Player 1 builds on the left tower, player 2 on the right
+    pub fn for_player(player: u8) -> Option<Side> {
+        match player {
+            1 => Some(Side::Left),
+            2 => Some(Side::Right),
+            _ => None,
+        }
+    }
 }
 
 /// Which side the local player controls. Gameplay only reads this;
@@ -49,20 +58,6 @@ pub struct LocalSide(pub Side);
 pub struct SidePlugin;
 impl Plugin for SidePlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<LocalSide>()
-            .add_systems(Update, debug_toggle_side.run_if(in_state(GameState::Game)));
+        app.init_resource::<LocalSide>();
     }
-}
-
-// TEMP: replace with network side assignment (e.g. set LocalSide in client::connect)
-fn debug_toggle_side(keys: Res<ButtonInput<KeyCode>>, mut side: ResMut<LocalSide>,client_data: ResMut<ClientInput>,) {
-    if client_data.player==1 {
-        side.0 = Side::Left;
-        info!("Switched to {:?} side", side.0);
-    }
-    else
-    {
-        side.0 = Side::Right;
-    }
-
 }

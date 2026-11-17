@@ -1,7 +1,7 @@
 use crate::GameState;
 
 use crate::game::BlockId;
-use crate::server::server_listener;
+use crate::server::{IsHost, server_listener};
 use bevy::prelude::*;
 use bevy::{color::palettes::css::DARK_BLUE, window::WindowEvent::PanGesture};
 use std::{
@@ -41,12 +41,34 @@ impl Plugin for ClientPlugin {
                 client_listener
                     .after(server_listener)
                     .run_if(resource_exists::<ClientSocket>),
+            )
+            .add_systems(
+                FixedUpdate,
+                despawn_stale_copies
+                    .after(client_listener)
+                    .run_if(resource_exists::<ClientSocket>.and_then(not(resource_exists::<IsHost>))),
             );
     }
 }
 
 #[derive(Component)]
 struct MoneyText(u8);
+
+// When the server last sent this copy's position; copies it stops sending get removed
+#[derive(Component)]
+pub struct LastSeen(f32);
+
+// The server stops sending entities it despawned, so drop copies it hasn't mentioned for a while
+const STALE_AFTER_SECS: f32 = 0.5;
+
+fn despawn_stale_copies(mut commands: Commands, time: Res<Time>, copies: Query<(Entity, &LastSeen)>) {
+    let now = time.elapsed_secs();
+    for (entity, seen) in &copies {
+        if now - seen.0 > STALE_AFTER_SECS {
+            commands.entity(entity).despawn();
+        }
+    }
+}
 
 #[derive(Resource)]
 pub struct ClientSocket {
@@ -139,6 +161,14 @@ fn do_send_button(
             },
             None => String::from("Not connected, enter IP on the start screen"),
         };
+    } else if keyboard_input.just_pressed(KeyCode::KeyG) {
+        status.0 = match &client {
+            Some(c) => match c.socket.send_to(b"G", c.serv_addy) {
+                Ok(n) => format!("sent {n} bytes"),
+                Err(e) => format!("failure to send : {e}"),
+            },
+            None => String::from("Not connected, enter IP on the start screen"),
+        };
     } else if keyboard_input.pressed(KeyCode::KeyS) {
         status.0 = match &client {
             Some(c) => match c.socket.send_to(b"S", c.serv_addy) {
@@ -196,9 +226,11 @@ pub fn client_listener(
     mut status: Query<&mut Text, With<statusText>>,
     mut input: ResMut<ServerInput>,
     asset_server: Res<AssetServer>,
-    mut blocks: Query<(&BlockId, &mut Transform)>,
+    mut blocks: Query<(&BlockId, &mut Transform, Option<&mut LastSeen>)>,
     mut p1: ResMut<Client1Money>, 
     mut p2: ResMut<Client2Money>,
+    is_host: Option<Res<IsHost>>,
+    time: Res<Time>,
 
 ) {
     let mut buf = [0u8; 1024];
@@ -238,6 +270,10 @@ pub fn client_listener(
                 }
 
                 else if first_byte.is_ascii_digit() {
+                    // On the host, these entities are the server's real bodies: never overwrite them
+                    if is_host.is_some() {
+                        continue;
+                    }
                     let text = String::from_utf8_lossy(&buf[..n]);
                     let mut parts = text.split(',');
 
@@ -256,31 +292,46 @@ pub fn client_listener(
                         continue;
                     };
 
+                    // Optional 5th field: 0 wood, 1 bank, 2 cannon, 3 cannonball
+                    let kind = parts.next().and_then(|k| k.trim().parse::<u8>().ok()).unwrap_or(0);
+                    let now = time.elapsed_secs();
+
                     let mut found = false;
-                    for (bid, mut transform) in &mut blocks {
+                    for (bid, mut transform, seen) in &mut blocks {
                         if bid.0 == id {
                             transform.translation.x = x;
                             transform.translation.y = y;
                             transform.rotation = Quat::from_rotation_z(rot);
+                            if let Some(mut seen) = seen {
+                                seen.0 = now;
+                            }
                             found = true;
                             break;
                         }
                     }
 
                     if !found && !spawned_this_call.contains(&id) {
+                        let (image, custom_size) = match kind {
+                            1 => ("Bank_Block.png", Some(crate::physics::block_half_size(true) * 2.0)),
+                            2 => ("MPCannon.png", None),
+                            3 => ("cannonball2.png", Some(crate::game::CANNONBALL_SPRITE_SIZE)),
+                            _ => ("MPWoodB.png", None),
+                        };
                         commands.spawn((
                             Sprite {
-                                image: asset_server.load("MPWoodB.png"),
-                                //custom_size: Some(Vec2::new(16.0, 48.0)),
+                                image: asset_server.load(image),
+                                custom_size,
                                 ..default()
                             },
                             BlockId(id),
+                            LastSeen(now),
                             Transform::from_xyz(x, y, 1.0)
                                 .with_rotation(Quat::from_rotation_z(rot)),
                         ));
                         spawned_this_call.push(id);
                     }
-                } else {
+                } else if is_host.is_none() {
+                    // The host acts only on ClientInput, which knows who pressed the key
                     input.input = first_byte;
                 }
             }

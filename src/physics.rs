@@ -2,6 +2,7 @@ use crate::client::ServerInput;
 use crate::client::client_listener;
 use crate::client::stop_server_input;
 use crate::game::Ammo;
+use crate::game::BankBlock;
 use crate::game::BeingPlaced;
 use crate::game::Block;
 use crate::game::CurrentlyActive;
@@ -40,6 +41,8 @@ const TOWER_BASE_Y: f32 = (-WIN_H / 2.0) + 20.0;
 // H: 24, W: 8 for OG block
 const BLOCK_HALF_HEIGHT: f32 = 12.0;
 const BLOCK_HALF_WIDTH: f32 = 48.0;
+// Bank_Block.png is drawn at 48x48
+const BANK_HALF_SIZE: f32 = 24.0;
 
 pub struct Obb {
     // Obb object
@@ -214,13 +217,24 @@ impl Shape {
 //  deterimine the shape of the object 
 // slingshots and blocks get shape: box
 // ammo gets shape: circle
-fn shape(slingshot: bool, ammo: bool) -> Shape {
-    if slingshot {
+fn shape(slingshot: bool, ammo: bool, bank: bool) -> Shape {
+    if bank {
+        Shape::Box {half_size: block_half_size(true)}
+    } else if slingshot {
         Shape::Box {half_size: Vec2::new(22.0, 22.0)}
     } else if ammo {
         Shape::Circle {radius: 12.0}
     } else {
         Shape::Box {half_size: Vec2::new(BLOCK_HALF_WIDTH, BLOCK_HALF_HEIGHT)}
+    }
+}
+
+// Half extents (x, y) of a placeable block, before rotation
+pub fn block_half_size(is_bank: bool) -> Vec2 {
+    if is_bank {
+        Vec2::splat(BANK_HALF_SIZE)
+    } else {
+        Vec2::new(BLOCK_HALF_WIDTH, BLOCK_HALF_HEIGHT)
     }
 }
 
@@ -549,17 +563,18 @@ pub fn simulate(
             Has<Slingshot>,
             Has<Ammo>,
             Has<StaticBody>,
+            Has<BankBlock>,
         ),
         Without<BeingPlaced>,
     >,
 ) {
     let mut bodies: Vec<Body> = query
         .iter()
-        .map(|(entity, block, transform, velocity, ang_vel, slingshot, ammo, is_static)| {
+        .map(|(entity, block, transform, velocity, ang_vel, slingshot, ammo, is_static, bank)| {
             let body_shape = if is_static {
                 Shape::Box {half_size: Vec2::new(128.0, 10.0)}
             } else {
-                shape(slingshot, ammo)
+                shape(slingshot, ammo, bank)
             };
             Body {
                 entity,
@@ -600,7 +615,7 @@ pub fn simulate(
     }
 
     for body in &bodies {
-        let Ok((_, _, mut transform, mut velocity, mut ang_vel, _, _, _)) = query.get_mut(body.entity)
+        let Ok((_, _, mut transform, mut velocity, mut ang_vel, _, _, _, _)) = query.get_mut(body.entity)
         else {
             continue;
         };
@@ -613,7 +628,7 @@ pub fn simulate(
     }
 }
 
-fn remove_lost_entities(mut commands: Commands, bodies: Query<(&Transform, Entity), With<Block>>) {
+pub fn remove_lost_entities(mut commands: Commands, bodies: Query<(&Transform, Entity), With<Block>>) {
     for (transform, entity) in &bodies {
         if transform.translation.y < GROUND_Y - 48.0
             || transform.translation.x < LEFT
@@ -627,13 +642,13 @@ fn remove_lost_entities(mut commands: Commands, bodies: Query<(&Transform, Entit
 
 // Bounds placement horizontally, and moves block while choosing placement
 pub fn bound_placement(
-    mut bodies: Query<(Entity,&Block, &mut Transform, &mut Velocity, &Side), With<BeingPlaced>>,
+    mut bodies: Query<(Entity,&Block, &mut Transform, &mut Velocity, &Side, Has<BankBlock>), With<BeingPlaced>>,
     mut commands: Commands,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     client_data: ResMut<ClientInput>,
     server_data: ResMut<ServerInput>,
 ) {
-    for (entity,block, mut transform, mut velocity, side, ) in &mut bodies {
+    for (entity,block, mut transform, mut velocity, side, bank) in &mut bodies {
         transform.translation.x += velocity.x;
         
         const MOVE_SPEED: f32 = 5.0;
@@ -650,12 +665,8 @@ pub fn bound_placement(
         transform.translation.x += dir * MOVE_SPEED;
         
     // Bounds come from the block's own side, not the local player's
-    let half_width = if block.rotated 
-    {
-    BLOCK_HALF_HEIGHT
-    } else {
-    BLOCK_HALF_WIDTH
-    };
+    let half = block_half_size(bank);
+    let half_width = if block.rotated { half.y } else { half.x };
 
     let min_x = side.base_left() + half_width;
     let max_x = side.base_right() - half_width;
@@ -689,21 +700,18 @@ if matches!(server_data.input, b'S' | b'A' | b'D') {
 
 // Rotate current block being placed by 90 degrees (pi/2 radians)
 pub fn rotate_block(
-    mut blocks: Query<(&mut Block, &mut Transform, &Side), With<BeingPlaced>>,
+    mut blocks: Query<(&mut Block, &mut Transform, &Side, Has<BankBlock>), With<BeingPlaced>>,
     mut client_data: ResMut<ClientInput>,
     mut server_data: ResMut<ServerInput>,
 ) {
     let mut rotate = client_data.input == b'R' || server_data.input == b'R';
 
-    if let Ok((mut block, mut transform, side)) = blocks.single_mut() {
+    if let Ok((mut block, mut transform, side, bank)) = blocks.single_mut() {
         rotate = rotate && client_data.player == block.playerNum;
 
     if rotate {
-    let new_half_width = if block.rotated {
-        BLOCK_HALF_WIDTH
-    } else {
-        BLOCK_HALF_HEIGHT
-    };
+    let half = block_half_size(bank);
+    let new_half_width = if block.rotated { half.x } else { half.y };
 
     let min_x = side.base_left() + new_half_width;
     let max_x = side.base_right() - new_half_width;

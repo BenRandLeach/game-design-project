@@ -10,17 +10,16 @@ const SLIDE_SIZE: Vec2 = Vec2::new(1280.0, 720.0);
 
 use crate::client::Client1Money;
 use crate::client::Client2Money;
-use crate::client::ServerInput;
-use crate::client::stop_server_input;
 use crate::physics::AngularVelocity;
 use crate::physics::Velocity;
 use crate::server::ClientInput;
-use crate::server::stop_input;
 use crate::server::{Player1Money, Player2Money};
-use crate::side::LocalSide;
 
 const STARTING_MONEY: u64 = 100;
 const BLOCK_COST: u64 = 1;
+const BANK_COST: u64 = 15;
+const BANK_MASS: f32 = 1.5;
+pub const BANK_INCOME_PER_SEC: u64 = 1;
 const GROUND_Y: f32 = -WIN_H / 2.0;
 const TOWER_BASE_Y: f32 = (-WIN_H / 2.0) + 20.0;
 // W: 16, H: 48 for OG Block
@@ -29,6 +28,7 @@ const BLOCK_WIDTH: f32 = 96.0;
 const BLOCK_HEIGHT: f32 = 24.0;
 
 const LAUNCH_SPEED: Vec2 = Vec2::new(800.0, 500.0);
+pub const CANNONBALL_SPRITE_SIZE: Vec2 = Vec2::new(250.0, 150.0);
 const MUZZLE_OFFSET: f32 = 36.0; // Past the slingshot's hitbox, or the shot collides with its own slingshot
 
 #[derive(Component)]
@@ -46,6 +46,10 @@ pub struct Block {
 
 #[derive(Component)]
 pub struct Slingshot;
+
+// Marks a bank block: heavier, square, and earns its owner money every second
+#[derive(Component)]
+pub struct BankBlock;
 
 #[derive(Component)]
 pub struct BeingPlaced;
@@ -98,8 +102,12 @@ impl Plugin for GamePlugin {
             .add_systems(Update, swap_to_credits.run_if(in_state(GameState::Game)))
             .add_systems(Update, update_money_ui.run_if(in_state(GameState::Game)))
             .add_systems(
-                Update,
+                // Same tick as the input arrives, before physics and before the key is cleared
+                FixedUpdate,
                 (spawn_block, spawn_slingshot, launch_cannonball)
+                    .after(crate::server::server_listener)
+                    .after(crate::client::client_listener)
+                    .before(crate::physics::fast_fall)
                     .run_if(in_state(GameState::Game))
                     .run_if(resource_exists::<IsHost>),
             )
@@ -210,14 +218,10 @@ fn move_blocks(
 
 fn spawn_block(
     mut commands: Commands,
-    keyboard_input: Res<ButtonInput<KeyCode>>,
     asset_server: Res<AssetServer>,
     mut currently_active: ResMut<CurrentlyActive>,
     being_placed: Query<Entity, With<BeingPlaced>>,
-    mut playerNum: Query<&mut Block, With<BeingPlaced>>,
-    local_side: Res<LocalSide>,
-    client_data: ResMut<ClientInput>,
-    server_data: ResMut<ServerInput>,
+    client_data: Res<ClientInput>,
     mut next_id: ResMut<NextBlockId>,
     mut p1_money: ResMut<Player1Money>,
     mut p2_money: ResMut<Player2Money>,
@@ -225,35 +229,38 @@ fn spawn_block(
     if being_placed.iter().count() > 0 {
         return;
     }
-    if server_data.input != b'B' && client_data.input != b'B' {
+    let is_bank = client_data.input == b'G';
+    if !is_bank && client_data.input != b'B' {
         return;
     }
     let player = client_data.player;
-    stop_input(client_data);
-    stop_server_input(server_data);
+    let Some(side) = Side::for_player(player) else {
+        return;
+    };
 
     let wallet = match player {
         1 => &mut p1_money.money,
-        2 => &mut p2_money.money,
-        _ => return,
+        _ => &mut p2_money.money,
     };
-    if *wallet < BLOCK_COST {
+    let cost = if is_bank { BANK_COST } else { BLOCK_COST };
+    if *wallet < cost {
         return;
     }
-    *wallet -= BLOCK_COST;
+    *wallet -= cost;
     if let Some(active_entity) = currently_active.0 {
         commands.entity(active_entity).remove::<NewEntity>();
     }
     let id = next_id.0;
     next_id.0 += 1;
-    let mass = 1.0;
-    let inertia = mass * ((BLOCK_WIDTH * BLOCK_WIDTH) + (BLOCK_HEIGHT * BLOCK_HEIGHT)) / 12.0;
+    let mass = if is_bank { BANK_MASS } else { 1.0 };
+    let size = crate::physics::block_half_size(is_bank) * 2.0;
+    let inertia = mass * ((size.x * size.x) + (size.y * size.y)) / 12.0;
 
-    let entity = commands
-        .spawn((
+    let mut entity = commands.spawn((
             Sprite {
-                image: asset_server.load("MPWoodB.png"),
-                //custom_size: Some(Vec2::new(BLOCK_WIDTH, BLOCK_HEIGHT)),
+                image: asset_server.load(if is_bank { "Bank_Block.png" } else { "MPWoodB.png" }),
+                // Bank art is 32x32, drawn at its 48x48 hitbox size
+                custom_size: is_bank.then_some(size),
                 ..default()
             },
             Block {
@@ -269,11 +276,13 @@ fn spawn_block(
             BeingPlaced,
             Velocity(Vec2::new(0., 0.)),
             AngularVelocity(0.),
-            local_side.0,
-            Transform::from_xyz(local_side.base_center(), 275., 1.),
-        ))
-        .id();
-    currently_active.0 = Some(entity);
+            side,
+            Transform::from_xyz(side.base_center(), 275., 1.),
+        ));
+    if is_bank {
+        entity.insert(BankBlock);
+    }
+    currently_active.0 = Some(entity.id());
 }
 fn toggle_shop(
     mut commands: Commands,
@@ -305,77 +314,80 @@ fn toggle_shop(
 }
 fn spawn_slingshot(
     mut commands: Commands,
-    keyboard_input: Res<ButtonInput<KeyCode>>,
     asset_server: Res<AssetServer>,
-    mut currently_active: ResMut<CurrentlyActive>,
-    client_data: ResMut<ClientInput>,
-    server_data: ResMut<ServerInput>,
-    local_side: Res<LocalSide>,
+    client_data: Res<ClientInput>,
+    mut next_id: ResMut<NextBlockId>,
 ) {
-    if server_data.input == b'N' || client_data.input == b'N' {
-        let slingshot = commands
-            .spawn((
-                Sprite {
-                    image: asset_server.load("MPCannon.png"),
-                    ..default()
-                },
-                Slingshot,
-                Block {
-                    mass: 1.0,
-                    angular_velocity: 0.0,
-                    inertia: 0.0,
-                    playerNum:client_data.player,
-                    fcoeff: 0.75,
-                    rotated: false,
-                },
-                JustDropped,
-                Velocity::default(),
-                AngularVelocity(0.),
-                local_side.0,
-                Transform::from_xyz(local_side.base_center(), 275., 2.),
-            ))
-            .id();
-        stop_input(client_data);
-        stop_server_input(server_data);
+    if client_data.input != b'N' {
+        return;
     }
+    let player = client_data.player;
+    let Some(side) = Side::for_player(player) else {
+        return;
+    };
+    let id = next_id.0;
+    next_id.0 += 1;
+    commands.spawn((
+        Sprite {
+            image: asset_server.load("MPCannon.png"),
+            ..default()
+        },
+        Slingshot,
+        Block {
+            mass: 1.0,
+            angular_velocity: 0.0,
+            inertia: 0.0,
+            playerNum: player,
+            fcoeff: 0.75,
+            rotated: false,
+        },
+        BlockId(id),
+        JustDropped,
+        Velocity::default(),
+        AngularVelocity(0.),
+        side,
+        Transform::from_xyz(side.base_center(), 275., 2.),
+    ));
 }
 
 fn launch_cannonball(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    slingshots: Query<(&Transform, &Side), With<Slingshot>>,
-    keyboard_input: Res<ButtonInput<KeyCode>>,
-    client_data: ResMut<ClientInput>,
-    server_data: ResMut<ServerInput>,
-    local_side: Res<LocalSide>,
+    slingshots: Query<(&Transform, &Side, &Block), With<Slingshot>>,
+    client_data: Res<ClientInput>,
+    mut next_id: ResMut<NextBlockId>,
 ) {
-    if server_data.input == b'M' || client_data.input == b'M' {
-        for (transform, side) in &slingshots {
-            let direction = if *side == Side::Left { 1.0 } else { -1.0 };
-            let launch_vel = Vec2::new(LAUNCH_SPEED.x * direction, LAUNCH_SPEED.y);
-            let position = transform.translation + Vec3::X * MUZZLE_OFFSET * direction;
-            commands.spawn((
-                Sprite {
-                    image: asset_server.load("cannonball2.png"),
-                    custom_size: Some(Vec2::new(250.0, 150.0)),
-                    ..default()
-                },
-                Ammo,
-                Block {
-                    mass: 1.0,
-                    angular_velocity: 0.0,
-                    inertia: 0.0,
-                    playerNum:client_data.player,
-                    fcoeff: 0.75,
-                    rotated: false,
-                },
-                Velocity(launch_vel),
-                AngularVelocity(0.),
-                Transform::from_translation(position),
-            ));
-        }
-        stop_input(client_data);
-        stop_server_input(server_data);
+    if client_data.input != b'M' {
+        return;
+    }
+    let player = client_data.player;
+    // Only the shooter's own cannons fire
+    for (transform, side, _) in slingshots.iter().filter(|(_, _, b)| b.playerNum == player) {
+        let direction = if *side == Side::Left { 1.0 } else { -1.0 };
+        let launch_vel = Vec2::new(LAUNCH_SPEED.x * direction, LAUNCH_SPEED.y);
+        let position = transform.translation + Vec3::X * MUZZLE_OFFSET * direction;
+        let id = next_id.0;
+        next_id.0 += 1;
+        commands.spawn((
+            Sprite {
+                image: asset_server.load("cannonball2.png"),
+                custom_size: Some(CANNONBALL_SPRITE_SIZE),
+                ..default()
+            },
+            Ammo,
+            Block {
+                mass: 1.0,
+                angular_velocity: 0.0,
+                inertia: 0.0,
+                playerNum: player,
+                fcoeff: 0.75,
+                rotated: false,
+            },
+            BlockId(id),
+            Velocity(launch_vel),
+            AngularVelocity(0.),
+            Transform::from_translation(position),
+        ));
     }
 }
 

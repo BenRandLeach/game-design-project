@@ -1,5 +1,6 @@
 use crate::client::{SendButton, statusText};
-use crate::game::{Block, BlockId};
+use crate::game::{Ammo, BankBlock, BeingPlaced, Block, BlockId, Slingshot, BANK_INCOME_PER_SEC};
+use std::collections::VecDeque;
 use crate::{GameState, server};
 use bevy::{prelude::*, transform};
 use std::{
@@ -17,8 +18,11 @@ pub struct Player2Address(pub Option<SocketAddr>);
 
 #[derive(Resource, Default)]
 pub struct ClientInput {
+    // The key being handled this tick, and who pressed it
     pub input: u8,
-    pub player: u8
+    pub player: u8,
+    // Keys waiting for a later tick, so presses from both players are never overwritten
+    pub queue: VecDeque<(u8, u8)>,
 }
 
 
@@ -56,14 +60,27 @@ impl Plugin for ServerPlugin {
             )
             .add_systems(
                 FixedUpdate,
+                bank_income
+                    .run_if(resource_exists::<ServerSocket>.and_then(check_if_players_exist).and_then(on_timer(Duration::from_secs(1))))
+            )
+            .add_systems(
+                FixedUpdate,
                 do_send_money
                     .run_if(resource_exists::<ServerSocket>.and_then(check_if_players_exist))
             )
             .add_systems(
                 FixedUpdate,
+                // After the whole physics chain, so moves/rotations made this tick are sent
                 do_send_blockpos
-                    .after(crate::physics::simulate)
+                    .after(crate::physics::remove_lost_entities)
                     .run_if(resource_exists::<ServerSocket>.and_then(check_if_players_exist)),
+            )
+            .add_systems(
+                FixedUpdate,
+                // Every system has seen this tick's key; drop it so it can't be handled twice
+                stop_input
+                    .after(crate::physics::remove_lost_entities)
+                    .run_if(resource_exists::<ServerSocket>),
             );
     }
 }
@@ -90,6 +107,21 @@ fn passive_money(
 {
     *&mut p1.money=p1.money+1;
     *&mut p2.money=p2.money+1;
+}
+
+// Each placed bank block pays its owner every second
+fn bank_income(
+    banks: Query<&Block, (With<BankBlock>, Without<BeingPlaced>)>,
+    mut p1: ResMut<Player1Money>,
+    mut p2: ResMut<Player2Money>,
+) {
+    for bank in &banks {
+        match bank.playerNum {
+            1 => p1.money += BANK_INCOME_PER_SEC,
+            2 => p2.money += BANK_INCOME_PER_SEC,
+            _ => {}
+        }
+    }
 }
 
 fn check_if_players_exist(
@@ -169,15 +201,22 @@ pub fn server_listener(
 
                 //println!("server got {n} bytes from {from}: {:?}", &buf[..n]);
                 // echo back to whoever sent it
-                input.input = buf[0];
-                input.player = if player1.0 == Some(from){
+                let key = buf[0];
+                let player = if player1.0 == Some(from) {
                     1
-                }
-                else if player2.0 == Some(from){
+                } else if player2.0 == Some(from) {
                     2
-                }else{
+                } else {
                     0
                 };
+                // Held keys (A/D/S) arrive every frame; one queued copy per player is enough
+                let held = matches!(key, b'A' | b'D' | b'S');
+                if player != 0
+                    && key != b'Q'
+                    && !(held && input.queue.contains(&(key, player)))
+                {
+                    input.queue.push_back((key, player));
+                }
                 if let Some(addr) = player1.0 {
                     if let Err(e) = server.socket.send_to(&buf[..n], addr) {
                         println!("server couldnt reply: {e}");
@@ -195,6 +234,11 @@ pub fn server_listener(
                 break;
             }
         }
+    }
+    // Hand out one key per tick
+    if let Some((key, player)) = input.queue.pop_front() {
+        input.input = key;
+        input.player = player;
     }
 }
 
@@ -234,12 +278,14 @@ fn do_send_blockpos(
     server: Res<ServerSocket>,
     player1: Res<Player1Address>,
     player2: Res<Player2Address>,
-    blocks: Query<(&BlockId, &Transform), With<Block>>,
+    blocks: Query<(&BlockId, &Transform, Has<BankBlock>, Has<Slingshot>, Has<Ammo>), With<Block>>,
 ) {
-    for (id, transform) in &blocks {
+    for (id, transform, bank, slingshot, ammo) in &blocks {
+        // Kind tells clients which sprite to draw: 0 wood, 1 bank, 2 cannon, 3 cannonball
+        let kind = if bank { 1 } else if slingshot { 2 } else if ammo { 3 } else { 0 };
         let pos = transform.translation;
         let rot = transform.rotation.to_scaled_axis().z;
-        let msg = format!("{},{},{},{}", id.0, pos.x, pos.y, rot);
+        let msg = format!("{},{},{},{},{}", id.0, pos.x, pos.y, rot, kind);
         let bytes = msg.as_bytes();
         if let Some(addr) = player1.0 {
             if let Err(e) = server.socket.send_to(bytes, addr) {
