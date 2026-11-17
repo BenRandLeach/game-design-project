@@ -19,6 +19,9 @@ const STARTING_MONEY: u64 = 100;
 const BLOCK_COST: u64 = 1;
 const BANK_COST: u64 = 15;
 const BANK_MASS: f32 = 1.5;
+const STONE_COST: u64 = 5;
+const CANNON_COST: u64 = 20;
+const SLINGSHOT_COST: u64 = 15;
 pub const BANK_INCOME_PER_SEC: u64 = 1;
 const GROUND_Y: f32 = -WIN_H / 2.0;
 const TOWER_BASE_Y: f32 = (-WIN_H / 2.0) + 20.0;
@@ -89,7 +92,29 @@ struct MoneyText(u8);
 
 #[derive(Component)]
 pub struct ShopBackground;
+#[derive(Clone, Copy, PartialEq)]
+pub enum BlockKind {
+    Wood,
+    Stone,
+    Bank,
+    Cannon,
+    Slingshot,
+}
 
+#[derive(Resource)]
+pub struct SelectedBlock {
+    pub p1: BlockKind,
+    pub p2: BlockKind,
+}
+
+impl Default for SelectedBlock {
+    fn default() -> Self {
+        SelectedBlock {
+            p1: BlockKind::Wood,
+            p2: BlockKind::Wood,
+        }
+    }
+}
 #[derive(Resource, Default)]
 pub struct ShopOpen(pub bool);
 pub struct GamePlugin;
@@ -102,9 +127,14 @@ impl Plugin for GamePlugin {
             .add_systems(Update, swap_to_credits.run_if(in_state(GameState::Game)))
             .add_systems(Update, update_money_ui.run_if(in_state(GameState::Game)))
             .add_systems(
-                // Same tick as the input arrives, before physics and before the key is cleared
                 FixedUpdate,
-                (spawn_block, spawn_slingshot, launch_cannonball)
+                (
+                    apply_selection,
+                    spawn_block,
+                    spawn_slingshot,
+                    launch_cannonball,
+                )
+                    .chain() // apply_selection first, so spawn_block sees the updated slot
                     .after(crate::server::server_listener)
                     .after(crate::client::client_listener)
                     .before(crate::physics::fast_fall)
@@ -116,10 +146,12 @@ impl Plugin for GamePlugin {
                 OnExit(GameState::Game),
                 crate::startscreen::despawn_with::<MoneyUi>,
             )
+            .add_systems(Update, shop_click.run_if(in_state(GameState::Game)))
             //.add_systems(Update, move_blocks.run_if(in_state(GameState::Game)))
             //.add_systems(Update, simulate_lag.run_if(in_state(GameState::Game)))
             .insert_resource(CurrentlyActive::default())
             .insert_resource(ShopOpen::default())
+            .insert_resource(SelectedBlock::default())
             .add_message::<Game>();
     }
 }
@@ -225,28 +257,69 @@ fn spawn_block(
     mut next_id: ResMut<NextBlockId>,
     mut p1_money: ResMut<Player1Money>,
     mut p2_money: ResMut<Player2Money>,
+    selected: Res<SelectedBlock>,
 ) {
     if being_placed.iter().count() > 0 {
         return;
     }
-    let is_bank = client_data.input == b'G';
-    if !is_bank && client_data.input != b'B' {
+    if client_data.input != b'B' {
         return;
     }
     let player = client_data.player;
     let Some(side) = Side::for_player(player) else {
         return;
     };
+    let kind = match player {
+        1 => selected.p1,
+        _ => selected.p2,
+    };
+
+    let cost = match kind {
+        BlockKind::Wood => BLOCK_COST,
+        BlockKind::Stone => STONE_COST,
+        BlockKind::Bank => BANK_COST,
+        BlockKind::Cannon => CANNON_COST,
+        BlockKind::Slingshot => SLINGSHOT_COST,
+    };
 
     let wallet = match player {
         1 => &mut p1_money.money,
         _ => &mut p2_money.money,
     };
-    let cost = if is_bank { BANK_COST } else { BLOCK_COST };
     if *wallet < cost {
         return;
     }
     *wallet -= cost;
+
+    if kind == BlockKind::Cannon {
+        let id = next_id.0;
+        next_id.0 += 1;
+        commands.spawn((
+            Sprite {
+                image: asset_server.load("MPCannon.png"),
+                ..default()
+            },
+            Slingshot,
+            Block {
+                mass: 1.0,
+                angular_velocity: 0.0,
+                inertia: 0.0,
+                playerNum: player,
+                fcoeff: 0.75,
+                rotated: false,
+            },
+            BlockId(id),
+            JustDropped,
+            Velocity::default(),
+            AngularVelocity(0.),
+            side,
+            Transform::from_xyz(side.base_center(), 275., 2.),
+        ));
+        return;
+    }
+
+    let is_bank = kind == BlockKind::Bank;
+
     if let Some(active_entity) = currently_active.0 {
         commands.entity(active_entity).remove::<NewEntity>();
     }
@@ -256,29 +329,34 @@ fn spawn_block(
     let size = crate::physics::block_half_size(is_bank) * 2.0;
     let inertia = mass * ((size.x * size.x) + (size.y * size.y)) / 12.0;
 
+    let image = match kind {
+        BlockKind::Bank => "Bank_Block.png",
+        BlockKind::Stone => "StoneBlock.png",
+        BlockKind::Slingshot => "slingshot.png",
+        _ => "MPWoodB.png",
+    };
+
     let mut entity = commands.spawn((
-            Sprite {
-                image: asset_server.load(if is_bank { "Bank_Block.png" } else { "MPWoodB.png" }),
-                // Bank art is 32x32, drawn at its 48x48 hitbox size
-                custom_size: is_bank.then_some(size),
-                ..default()
-            },
-            Block {
-                mass,
-                angular_velocity: 0.0,
-                inertia,
-                playerNum:player,
-                fcoeff: 0.25,
-                rotated: false,
-            },
-            // NewEntity,
-            BlockId(id),
-            BeingPlaced,
-            Velocity(Vec2::new(0., 0.)),
-            AngularVelocity(0.),
-            side,
-            Transform::from_xyz(side.base_center(), 275., 1.),
-        ));
+        Sprite {
+            image: asset_server.load(image),
+            custom_size: is_bank.then_some(size),
+            ..default()
+        },
+        Block {
+            mass,
+            angular_velocity: 0.0,
+            inertia,
+            playerNum: player,
+            fcoeff: 0.25,
+            rotated: false,
+        },
+        BlockId(id),
+        BeingPlaced,
+        Velocity(Vec2::new(0., 0.)),
+        AngularVelocity(0.),
+        side,
+        Transform::from_xyz(side.base_center(), 275., 1.),
+    ));
     if is_bank {
         entity.insert(BankBlock);
     }
@@ -310,6 +388,72 @@ fn toggle_shop(
             Transform::from_xyz(0.0, 0.0, 5.0),
         ));
         shop_open.0 = true;
+    }
+}
+fn apply_selection(client_data: Res<ClientInput>, mut selected: ResMut<SelectedBlock>) {
+    let kind = match client_data.input {
+        b'w' => BlockKind::Wood,
+        b't' => BlockKind::Stone,
+        b'k' => BlockKind::Bank,
+        b'j' => BlockKind::Cannon,
+        b'l' => BlockKind::Slingshot,
+        _ => return,
+    };
+    match client_data.player {
+        1 => selected.p1 = kind,
+        2 => selected.p2 = kind,
+        _ => {}
+    }
+}
+fn shop_click(
+    mouse: Res<ButtonInput<MouseButton>>,
+    windows: Query<&Window>,
+    camera_q: Query<(&Camera, &GlobalTransform)>,
+    shop_open: Res<ShopOpen>,
+    client: Option<Res<crate::client::ClientSocket>>,
+) {
+    if !shop_open.0 || !mouse.just_pressed(MouseButton::Left) {
+        return;
+    }
+
+    let Ok(window) = windows.single() else { return };
+    let Some(cursor) = window.cursor_position() else {
+        return;
+    };
+    let Ok((camera, cam_transform)) = camera_q.single() else {
+        return;
+    };
+    let Ok(world) = camera.viewport_to_world_2d(cam_transform, cursor) else {
+        return;
+    };
+
+    const SHOP_W: f32 = 1080.0;
+    const SHOP_H: f32 = 600.0;
+    let corner = |px: f32, py: f32| Vec2::new(px - SHOP_W / 2.0, SHOP_H / 2.0 - py);
+
+    let wood_rect = Rect::from_corners(corner(290.0, 140.0), corner(474.0, 304.0));
+    let stone_rect = Rect::from_corners(corner(555.0, 140.0), corner(739.0, 304.0));
+    let bank_rect = Rect::from_corners(corner(820.0, 140.0), corner(1004.0, 304.0));
+    let cannon_rect = Rect::from_corners(corner(425.0, 345.0), corner(609.0, 509.0));
+    let slingshot_rect = Rect::from_corners(corner(745.0, 345.0), corner(929.0, 509.0));
+
+    // Which selection byte to send to the host
+    let byte: &[u8] = if wood_rect.contains(world) {
+        b"w"
+    } else if stone_rect.contains(world) {
+        b"t"
+    } else if bank_rect.contains(world) {
+        b"k"
+    } else if cannon_rect.contains(world) {
+        b"j"
+    } else if slingshot_rect.contains(world) {
+        b"l"
+    } else {
+        return;
+    };
+
+    if let Some(c) = &client {
+        let _ = c.send(byte);
     }
 }
 fn spawn_slingshot(
@@ -451,3 +595,22 @@ fn setup_game(
     }*/
     camera.translation.x = 0.;
 }
+//             Transform::from_xyz(x, TOWER_BASE_Y - 10.0, 0.0),
+//         ));
+//     }*/
+//     camera.translation.x = 0.;
+// }
+//             Block {
+//                 mass: base_mass,
+//                 angular_velocity: 0.0,
+//                 inertia: base_inertia,
+//                 fcoeff: 0.25,
+//             },
+//             Velocity(Vec2::ZERO),
+//             AngularVelocity(0.0),
+//             StaticBody,
+//             Transform::from_xyz(x, TOWER_BASE_Y - 10.0, 0.0),
+//         ));
+//     }*/
+//     camera.translation.x = 0.;
+// }

@@ -1,15 +1,15 @@
 use crate::client::{SendButton, statusText};
-use crate::game::{Ammo, BankBlock, BeingPlaced, Block, BlockId, Slingshot, BANK_INCOME_PER_SEC};
-use std::collections::VecDeque;
+use crate::game::{Ammo, BANK_INCOME_PER_SEC, BankBlock, BeingPlaced, Block, BlockId, Slingshot};
 use crate::{GameState, server};
 use bevy::{prelude::*, transform};
+use std::collections::VecDeque;
 use std::{
     io::ErrorKind,
     net::{SocketAddr, UdpSocket},
 };
 pub struct ServerPlugin;
-use std::time::Duration;
 use bevy::time::common_conditions::on_timer;
+use std::time::Duration;
 #[derive(Resource, Default)]
 pub struct Player1Address(pub Option<SocketAddr>);
 
@@ -25,7 +25,6 @@ pub struct ClientInput {
     pub queue: VecDeque<(u8, u8)>,
 }
 
-
 #[derive(Resource, Default)]
 pub struct Player1Money {
     pub money: u64,
@@ -40,8 +39,8 @@ pub struct IsHost;
 
 impl Plugin for ServerPlugin {
     fn build(&self, app: &mut App) {
-       // app.add_plugins(DefaultPlugins)
-            app.add_systems(Startup, setup_server_socket)
+        // app.add_plugins(DefaultPlugins)
+        app.add_systems(Startup, setup_server_socket)
             // app.add_systems(Update, server_listener);
             .add_systems(
                 FixedUpdate,
@@ -55,18 +54,24 @@ impl Plugin for ServerPlugin {
             )
             .add_systems(
                 FixedUpdate,
-                passive_money
-                    .run_if(resource_exists::<ServerSocket>.and_then(check_if_players_exist).and_then(on_timer(Duration::from_secs(5))))
+                passive_money.run_if(
+                    resource_exists::<ServerSocket>
+                        .and_then(check_if_players_exist)
+                        .and_then(on_timer(Duration::from_secs(5))),
+                ),
             )
             .add_systems(
                 FixedUpdate,
-                bank_income
-                    .run_if(resource_exists::<ServerSocket>.and_then(check_if_players_exist).and_then(on_timer(Duration::from_secs(1))))
+                bank_income.run_if(
+                    resource_exists::<ServerSocket>
+                        .and_then(check_if_players_exist)
+                        .and_then(on_timer(Duration::from_secs(1))),
+                ),
             )
             .add_systems(
                 FixedUpdate,
                 do_send_money
-                    .run_if(resource_exists::<ServerSocket>.and_then(check_if_players_exist))
+                    .run_if(resource_exists::<ServerSocket>.and_then(check_if_players_exist)),
             )
             .add_systems(
                 FixedUpdate,
@@ -85,7 +90,6 @@ impl Plugin for ServerPlugin {
     }
 }
 
-
 #[derive(Resource)]
 pub struct ServerSocket {
     socket: UdpSocket,
@@ -100,13 +104,9 @@ impl ServerSocket {
     }
 }
 
-fn passive_money(
-    mut p1: ResMut<Player1Money>, 
-    mut p2: ResMut<Player2Money>,
-)
-{
-    *&mut p1.money=p1.money+1;
-    *&mut p2.money=p2.money+1;
+fn passive_money(mut p1: ResMut<Player1Money>, mut p2: ResMut<Player2Money>) {
+    *&mut p1.money = p1.money + 1;
+    *&mut p2.money = p2.money + 1;
 }
 
 // Each placed bank block pays its owner every second
@@ -211,10 +211,7 @@ pub fn server_listener(
                 };
                 // Held keys (A/D/S) arrive every frame; one queued copy per player is enough
                 let held = matches!(key, b'A' | b'D' | b'S');
-                if player != 0
-                    && key != b'Q'
-                    && !(held && input.queue.contains(&(key, player)))
-                {
+                if player != 0 && key != b'Q' && !(held && input.queue.contains(&(key, player))) {
                     input.queue.push_back((key, player));
                 }
                 if let Some(addr) = player1.0 {
@@ -242,47 +239,65 @@ pub fn server_listener(
     }
 }
 
-fn do_send_money(server: Res<ServerSocket>,
+fn do_send_money(
+    server: Res<ServerSocket>,
     player1: Res<Player1Address>,
     player2: Res<Player2Address>,
-    p1: Res<Player1Money>, 
-    p2: Res<Player2Money>, )
-    {
-        let msg= format!("{},{},{}","$",1,p1.money);
-        let bytes = msg.as_bytes();
-        if let Some(addr) = player1.0 {
-            if let Err(e) = server.socket.send_to(bytes, addr) {
-                println!("server couldnt p1 money to player 1: {e}");
-            }
-        }
-        if let Some(addr2) = player2.0 {
-            if let Err(e) = server.socket.send_to(bytes, addr2) {
-                println!("server couldnt send p1 money to player 2: {e}");
-            }
-        }
-        let msg= format!("{},{},{}","$",2,p2.money);
-        let bytes = msg.as_bytes();
-        if let Some(addr) = player1.0 {
-            if let Err(e) = server.socket.send_to(bytes, addr) {
-                println!("server couldnt send p2 money to player 1: {e}");
-            }
-        }
-        if let Some(addr2) = player2.0 {
-            if let Err(e) = server.socket.send_to(bytes, addr2) {
-                println!("server couldnt send p2 money to player 2: {e}");
-            }
+    p1: Res<Player1Money>,
+    p2: Res<Player2Money>,
+) {
+    let msg = format!("{},{},{}", "$", 1, p1.money);
+    let bytes = msg.as_bytes();
+    if let Some(addr) = player1.0 {
+        if let Err(e) = server.socket.send_to(bytes, addr) {
+            println!("server couldnt p1 money to player 1: {e}");
         }
     }
+    if let Some(addr2) = player2.0 {
+        if let Err(e) = server.socket.send_to(bytes, addr2) {
+            println!("server couldnt send p1 money to player 2: {e}");
+        }
+    }
+    let msg = format!("{},{},{}", "$", 2, p2.money);
+    let bytes = msg.as_bytes();
+    if let Some(addr) = player1.0 {
+        if let Err(e) = server.socket.send_to(bytes, addr) {
+            println!("server couldnt send p2 money to player 1: {e}");
+        }
+    }
+    if let Some(addr2) = player2.0 {
+        if let Err(e) = server.socket.send_to(bytes, addr2) {
+            println!("server couldnt send p2 money to player 2: {e}");
+        }
+    }
+}
 
 fn do_send_blockpos(
     server: Res<ServerSocket>,
     player1: Res<Player1Address>,
     player2: Res<Player2Address>,
-    blocks: Query<(&BlockId, &Transform, Has<BankBlock>, Has<Slingshot>, Has<Ammo>), With<Block>>,
+    blocks: Query<
+        (
+            &BlockId,
+            &Transform,
+            Has<BankBlock>,
+            Has<Slingshot>,
+            Has<Ammo>,
+        ),
+        With<Block>,
+    >,
 ) {
     for (id, transform, bank, slingshot, ammo) in &blocks {
         // Kind tells clients which sprite to draw: 0 wood, 1 bank, 2 cannon, 3 cannonball
-        let kind = if bank { 1 } else if slingshot { 2 } else if ammo { 3 } else { 0 };
+        let kind = if bank {
+            1
+        } else if slingshot {
+            2
+        } else if ammo {
+            3
+        } else {
+            0
+        };
         let pos = transform.translation;
         let rot = transform.rotation.to_scaled_axis().z;
         let msg = format!("{},{},{},{},{}", id.0, pos.x, pos.y, rot, kind);
@@ -299,6 +314,7 @@ fn do_send_blockpos(
         }
     }
 }
+
 /*fn do_send_button(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     server: Option<Res<ServerSocket>>,

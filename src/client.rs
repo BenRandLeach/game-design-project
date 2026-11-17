@@ -22,13 +22,20 @@ pub struct Client1Money {
 pub struct Client2Money {
     pub money: u64,
 }
-
+impl ClientSocket {
+    pub fn send(&self, bytes: &[u8]) -> std::io::Result<usize> {
+        self.socket.send_to(bytes, self.serv_addy)
+    }
+}
 pub struct ClientPlugin;
 impl Plugin for ClientPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(GameState::Game), network_ui)
-        .add_systems(
-                OnEnter(GameState::Game),start_connect.after(network_ui).run_if(resource_exists::<ClientSocket>),
+            .add_systems(
+                OnEnter(GameState::Game),
+                start_connect
+                    .after(network_ui)
+                    .run_if(resource_exists::<ClientSocket>),
             )
             .add_systems(
                 // Not FixedUpdate: a frame can run 0 or 2 ticks, which drops or doubles key presses
@@ -44,9 +51,9 @@ impl Plugin for ClientPlugin {
             )
             .add_systems(
                 FixedUpdate,
-                despawn_stale_copies
-                    .after(client_listener)
-                    .run_if(resource_exists::<ClientSocket>.and_then(not(resource_exists::<IsHost>))),
+                despawn_stale_copies.after(client_listener).run_if(
+                    resource_exists::<ClientSocket>.and_then(not(resource_exists::<IsHost>)),
+                ),
             );
     }
 }
@@ -61,7 +68,11 @@ pub struct LastSeen(f32);
 // The server stops sending entities it despawned, so drop copies it hasn't mentioned for a while
 const STALE_AFTER_SECS: f32 = 0.5;
 
-fn despawn_stale_copies(mut commands: Commands, time: Res<Time>, copies: Query<(Entity, &LastSeen)>) {
+fn despawn_stale_copies(
+    mut commands: Commands,
+    time: Res<Time>,
+    copies: Query<(Entity, &LastSeen)>,
+) {
     let now = time.elapsed_secs();
     for (entity, seen) in &copies {
         if now - seen.0 > STALE_AFTER_SECS {
@@ -103,10 +114,14 @@ pub fn connect(commands: &mut Commands, text: &str) -> String {
     format!("Ready to talk to {serv_addy}")
 }
 //draws the send button and status line
-fn network_ui(mut commands: Commands, client: Option<Res<ClientSocket>>,mut p1: ResMut<Client1Money>, 
-    mut p2: ResMut<Client2Money>,) {
-    *&mut p1.money=100;
-    *&mut p2.money=100;
+fn network_ui(
+    mut commands: Commands,
+    client: Option<Res<ClientSocket>>,
+    mut p1: ResMut<Client1Money>,
+    mut p2: ResMut<Client2Money>,
+) {
+    *&mut p1.money = 100;
+    *&mut p2.money = 100;
     let status_mess = match &client {
         Some(c) => format!("connected to {}", c.serv_addy),
         None => String::from("not connected"),
@@ -130,24 +145,25 @@ fn network_ui(mut commands: Commands, client: Option<Res<ClientSocket>>,mut p1: 
     //let send_label = commands.spawn(Text::new("Send")).id();
     let status = commands.spawn((Text::new(status_mess), statusText)).id();
 }
-fn start_connect(client: Option<Res<ClientSocket>>,
-    mut status: Single<&mut Text, With<statusText>>,)
-    {
-        status.0 = match &client {
-            Some(c) => match c.socket.send_to(b"Q", c.serv_addy) {
-                Ok(n) => format!("sent {n} bytes"),
-                Err(e) => format!("failure to send : {e}"),
-            },
-            None => String::from("Not connected, enter IP on the start screen"),
-        };
-        status.0 = match &client {
-            Some(c) => match c.socket.send_to(b"Q", c.serv_addy) {
-                Ok(n) => format!("sent {n} bytes"),
-                Err(e) => format!("failure to send : {e}"),
-            },
-            None => String::from("Not connected, enter IP on the start screen"),
-        };
-    }
+fn start_connect(
+    client: Option<Res<ClientSocket>>,
+    mut status: Single<&mut Text, With<statusText>>,
+) {
+    status.0 = match &client {
+        Some(c) => match c.socket.send_to(b"Q", c.serv_addy) {
+            Ok(n) => format!("sent {n} bytes"),
+            Err(e) => format!("failure to send : {e}"),
+        },
+        None => String::from("Not connected, enter IP on the start screen"),
+    };
+    status.0 = match &client {
+        Some(c) => match c.socket.send_to(b"Q", c.serv_addy) {
+            Ok(n) => format!("sent {n} bytes"),
+            Err(e) => format!("failure to send : {e}"),
+        },
+        None => String::from("Not connected, enter IP on the start screen"),
+    };
+}
 fn do_send_button(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     client: Option<Res<ClientSocket>>,
@@ -227,11 +243,10 @@ pub fn client_listener(
     mut input: ResMut<ServerInput>,
     asset_server: Res<AssetServer>,
     mut blocks: Query<(&BlockId, &mut Transform, Option<&mut LastSeen>)>,
-    mut p1: ResMut<Client1Money>, 
+    mut p1: ResMut<Client1Money>,
     mut p2: ResMut<Client2Money>,
     is_host: Option<Res<IsHost>>,
     time: Res<Time>,
-
 ) {
     let mut buf = [0u8; 1024];
     let mut spawned_this_call: Vec<u32> = Vec::new();
@@ -243,8 +258,7 @@ pub fn client_listener(
                     continue;
                 }
                 let first_byte = buf[0];
-                if first_byte == b'$'
-                {
+                if first_byte == b'$' {
                     let text = String::from_utf8_lossy(&buf[..n]);
                     let mut parts = text.split(',');
                     let (Some(moneySign_s), Some(playerNum_s), Some(moneyAmount_s)) =
@@ -259,17 +273,12 @@ pub fn client_listener(
                     ) else {
                         continue;
                     };
-                    if playerNum==1
-                    {
-                        *&mut p1.money=moneyAmount;
+                    if playerNum == 1 {
+                        *&mut p1.money = moneyAmount;
+                    } else {
+                        *&mut p2.money = moneyAmount;
                     }
-                    else
-                    {
-                        *&mut p2.money=moneyAmount;
-                    }
-                }
-
-                else if first_byte.is_ascii_digit() {
+                } else if first_byte.is_ascii_digit() {
                     // On the host, these entities are the server's real bodies: never overwrite them
                     if is_host.is_some() {
                         continue;
@@ -293,7 +302,10 @@ pub fn client_listener(
                     };
 
                     // Optional 5th field: 0 wood, 1 bank, 2 cannon, 3 cannonball
-                    let kind = parts.next().and_then(|k| k.trim().parse::<u8>().ok()).unwrap_or(0);
+                    let kind = parts
+                        .next()
+                        .and_then(|k| k.trim().parse::<u8>().ok())
+                        .unwrap_or(0);
                     let now = time.elapsed_secs();
 
                     let mut found = false;
@@ -312,7 +324,10 @@ pub fn client_listener(
 
                     if !found && !spawned_this_call.contains(&id) {
                         let (image, custom_size) = match kind {
-                            1 => ("Bank_Block.png", Some(crate::physics::block_half_size(true) * 2.0)),
+                            1 => (
+                                "Bank_Block.png",
+                                Some(crate::physics::block_half_size(true) * 2.0),
+                            ),
                             2 => ("MPCannon.png", None),
                             3 => ("cannonball2.png", Some(crate::game::CANNONBALL_SPRITE_SIZE)),
                             _ => ("MPWoodB.png", None),
