@@ -1,5 +1,5 @@
 use crate::client::{SendButton, statusText};
-use crate::game::{Ammo, BANK_INCOME_PER_SEC, BankBlock, BeingPlaced, Block, BlockId, Slingshot};
+use crate::game::{Ammo, BANK_INCOME_PER_SEC, BankBlock, BeingPlaced, Block, BlockId, Slingshot,Stone};
 use crate::{GameState, server};
 use bevy::{prelude::*, transform};
 use std::collections::VecDeque;
@@ -283,11 +283,12 @@ fn do_send_blockpos(
             Has<BankBlock>,
             Has<Slingshot>,
             Has<Ammo>,
+            Has<Stone>,
         ),
         With<Block>,
     >,
 ) {
-    for (id, transform, bank, slingshot, ammo) in &blocks {
+    for (id, transform, bank, slingshot, ammo,stone) in &blocks {
         // Kind tells clients which sprite to draw: 0 wood, 1 bank, 2 cannon, 3 cannonball
         let kind = if bank {
             1
@@ -295,7 +296,10 @@ fn do_send_blockpos(
             2
         } else if ammo {
             3
-        } else {
+        } else if stone{
+            4
+        } 
+        else {
             0
         };
         let pos = transform.translation;
