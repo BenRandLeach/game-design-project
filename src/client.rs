@@ -300,12 +300,13 @@ pub fn client_listener(
                     ) else {
                         continue;
                     };
-
+                    
                     // Optional 5th field: 0 wood, 1 bank, 2 cannon, 3 cannonball
                     let kind = parts
                         .next()
                         .and_then(|k| k.trim().parse::<u8>().ok())
                         .unwrap_or(0);
+                    //print!("{}",kind);
                     let now = time.elapsed_secs();
 
                     let mut found = false;
@@ -330,6 +331,7 @@ pub fn client_listener(
                             ),
                             2 => ("MPCannon.png", None),
                             3 => ("cannonball2.png", Some(crate::game::CANNONBALL_SPRITE_SIZE)),
+                            4 =>("StoneBlock.png",None),
                             _ => ("MPWoodB.png", None),
                         };
                         commands.spawn((

@@ -50,6 +50,9 @@ pub struct Block {
 #[derive(Component)]
 pub struct Slingshot;
 
+#[derive(Component)]
+pub struct Stone;
+
 // Marks a bank block: heavier, square, and earns its owner money every second
 #[derive(Component)]
 pub struct BankBlock;
@@ -319,6 +322,7 @@ fn spawn_block(
     }
 
     let is_bank = kind == BlockKind::Bank;
+    
 
     if let Some(active_entity) = currently_active.0 {
         commands.entity(active_entity).remove::<NewEntity>();
@@ -359,6 +363,9 @@ fn spawn_block(
     ));
     if is_bank {
         entity.insert(BankBlock);
+    }
+    if kind == BlockKind::Stone {
+        entity.insert(Stone);
     }
     currently_active.0 = Some(entity.id());
 }
