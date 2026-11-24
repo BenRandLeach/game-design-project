@@ -70,6 +70,8 @@ fn main() {
         .init_resource::<client::Client2Money>()
         .init_resource::<server::Player1Address>()
         .init_resource::<server::Player2Address>()
+        .init_resource::<server::Player1PowerUp>()
+        .init_resource::<server::Player2PowerUp>()
         .init_resource::<game::NextBlockId>()
         // Run the game
         .run();
