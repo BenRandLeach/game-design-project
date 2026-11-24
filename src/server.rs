@@ -34,6 +34,22 @@ pub struct Player1Money {
 pub struct Player2Money {
     pub money: u64,
 }
+
+#[derive(Resource, Default)]
+pub struct Player1PowerUp {
+    pub moneyPowerUp: bool,
+    pub moneyPowerUpUsed: bool,
+    pub attackSpeedPowerUp: bool,
+    pub attackSpeedPowerUpUsed: bool,
+}
+
+#[derive(Resource, Default)]
+pub struct Player2PowerUp {
+    pub moneyPowerUp: bool,
+    pub moneyPowerUpUsed: bool,
+    pub attackSpeedPowerUp: bool,
+    pub attackSpeedPowerUpUsed: bool,
+}
 #[derive(Resource)]
 pub struct IsHost;
 
@@ -104,9 +120,22 @@ impl ServerSocket {
     }
 }
 
-fn passive_money(mut p1: ResMut<Player1Money>, mut p2: ResMut<Player2Money>) {
+fn passive_money(mut p1: ResMut<Player1Money>, mut p2: ResMut<Player2Money>, p1Power:Res<Player1PowerUp>, p2Power:Res<Player2PowerUp>) {
+    if p1Power.moneyPowerUp==true
+    {
+        *&mut p1.money = p1.money + 2;
+    }
+    else{
     *&mut p1.money = p1.money + 1;
-    *&mut p2.money = p2.money + 1;
+    }
+    if p2Power.moneyPowerUp==true
+    {
+        *&mut p2.money = p2.money + 2;
+    }
+    else{
+        *&mut p2.money = p2.money + 1;
+    }
+    
 }
 
 // Each placed bank block pays its owner every second
@@ -114,11 +143,21 @@ fn bank_income(
     banks: Query<&Block, (With<BankBlock>, Without<BeingPlaced>)>,
     mut p1: ResMut<Player1Money>,
     mut p2: ResMut<Player2Money>,
+    p1Power:Res<Player1PowerUp>, 
+    p2Power:Res<Player2PowerUp>,
 ) {
+    let mut p1multiplier=1;
+    let mut p2multiplier=1;
+    if p1Power.moneyPowerUp==true{
+        p1multiplier=2;
+    }
+    if p2Power.moneyPowerUp==true{
+        p2multiplier=2;
+    }
     for bank in &banks {
         match bank.playerNum {
-            1 => p1.money += BANK_INCOME_PER_SEC,
-            2 => p2.money += BANK_INCOME_PER_SEC,
+            1 => p1.money += BANK_INCOME_PER_SEC*p1multiplier,
+            2 => p2.money += BANK_INCOME_PER_SEC*p2multiplier,
             _ => {}
         }
     }
