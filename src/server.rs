@@ -39,6 +39,7 @@ pub struct Player2Money {
 pub struct Player1PowerUp {
     pub moneyPowerUp: bool,
     pub moneyPowerUpUsed: bool,
+    pub moneyTimer: f32,
     pub attackSpeedPowerUp: bool,
     pub attackSpeedPowerUpUsed: bool,
 }
@@ -47,6 +48,7 @@ pub struct Player1PowerUp {
 pub struct Player2PowerUp {
     pub moneyPowerUp: bool,
     pub moneyPowerUpUsed: bool,
+    pub moneyTimer: f32,
     pub attackSpeedPowerUp: bool,
     pub attackSpeedPowerUpUsed: bool,
 }
@@ -86,6 +88,20 @@ impl Plugin for ServerPlugin {
             )
             .add_systems(
                 FixedUpdate,
+                turnOffP1MoneyPower.run_if(
+                    resource_exists::<ServerSocket>
+                    .and_then(check_if_players_exist)
+                ),
+            )
+            .add_systems(
+                FixedUpdate,
+                turnOffP2MoneyPower.run_if(
+                    resource_exists::<ServerSocket>
+                    .and_then(check_if_players_exist)
+                ),
+            )
+            .add_systems(
+                FixedUpdate,
                 do_send_money
                     .run_if(resource_exists::<ServerSocket>.and_then(check_if_players_exist)),
             )
@@ -120,6 +136,31 @@ impl ServerSocket {
     }
 }
 
+fn turnOffP1MoneyPower(mut p1Power:ResMut<Player1PowerUp>)
+{
+    if p1Power.moneyPowerUp==true
+    {
+        p1Power.moneyTimer-=0.0156;
+        if p1Power.moneyTimer<0.0
+        {
+            p1Power.moneyPowerUp=false;
+        }
+    }
+    
+}
+
+fn turnOffP2MoneyPower(mut p2Power:ResMut<Player2PowerUp>)
+{
+    if p2Power.moneyPowerUp==true
+    {
+        p2Power.moneyTimer-=0.0156;
+        if p2Power.moneyTimer<0.0
+        {
+            p2Power.moneyPowerUp=false;
+        }
+    }
+}
+
 fn passive_money(mut p1: ResMut<Player1Money>, mut p2: ResMut<Player2Money>, p1Power:Res<Player1PowerUp>, p2Power:Res<Player2PowerUp>) {
     if p1Power.moneyPowerUp==true
     {
@@ -148,6 +189,7 @@ fn bank_income(
 ) {
     let mut p1multiplier=1;
     let mut p2multiplier=1;
+    //println!("P1: {} P2: {}",p1Power.moneyPowerUp,p2Power.moneyPowerUp);
     if p1Power.moneyPowerUp==true{
         p1multiplier=2;
     }

@@ -8,6 +8,8 @@ use crate::side::Side;
 use crate::{GameState, WIN_H};
 const SLIDE_SIZE: Vec2 = Vec2::new(1280.0, 720.0);
 
+use crate::server::Player1PowerUp;
+use crate::server::Player2PowerUp;
 use crate::client::Client1Money;
 use crate::client::Client2Money;
 use crate::physics::AngularVelocity;
@@ -136,6 +138,7 @@ impl Plugin for GamePlugin {
                     spawn_block,
                     spawn_slingshot,
                     launch_cannonball,
+                    moneyDouble,
                 )
                     .chain() // apply_selection first, so spawn_block sees the updated slot
                     .after(crate::server::server_listener)
@@ -369,6 +372,29 @@ fn spawn_block(
     }
     currently_active.0 = Some(entity.id());
 }
+fn moneyDouble(
+    mut commands: Commands,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    client_data: Res<ClientInput>,
+    mut p1Powers:ResMut<Player1PowerUp>,
+    mut p2Powers:ResMut<Player2PowerUp>,
+)
+{
+    if client_data.input != b'T' {
+        return;
+    }
+    if client_data.player==1 && p1Powers.moneyPowerUpUsed==false{
+        p1Powers.moneyPowerUp=true;
+        p1Powers.moneyPowerUpUsed=true;
+        p1Powers.moneyTimer=20.0;
+    }
+    if client_data.player==2 && p2Powers.moneyPowerUpUsed==false{
+        p2Powers.moneyPowerUp=true;
+        p2Powers.moneyPowerUpUsed=true;
+        p2Powers.moneyTimer=20.0;
+    }
+}
+
 fn toggle_shop(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
