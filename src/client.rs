@@ -193,7 +193,16 @@ fn do_send_button(
             },
             None => String::from("Not connected, enter IP on the start screen"),
         };
-    } else if keyboard_input.just_pressed(KeyCode::KeyR) {
+    } else if keyboard_input.pressed(KeyCode::KeyT) {
+        status.0 = match &client {
+            Some(c) => match c.socket.send_to(b"T", c.serv_addy) {
+                Ok(n) => format!("sent {n} bytes"),
+                Err(e) => format!("failure to send : {e}"),
+            },
+            None => String::from("Not connected, enter IP on the start screen"),
+        };
+    }
+    else if keyboard_input.just_pressed(KeyCode::KeyR) {
         status.0 = match &client {
             Some(c) => match c.socket.send_to(b"R", c.serv_addy) {
                 Ok(n) => format!("sent {n} bytes"),
